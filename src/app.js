@@ -6,7 +6,7 @@ import headPath from './models/Taj.gltf';
 import { MouseLight } from './MouseLight';
 import { GlassSkin } from './GlassSkin';
 import { SoftVolume } from './SoftVolume';
-import { Background } from './Background';
+import { FiberForestBackground } from './FiberForestBackground';
 import { HeadMove } from './HeadMove';
 import { Activity } from './Activity';
 import { Gravity } from './Gravity';
@@ -48,6 +48,8 @@ class IridescentVisionApp {
     this.updater = new Updater();
     this.events = new EventBus();
     this.lastTime = 0;
+    this.canvas = null;
+    this.isStarted = false;
 
     this.animate = this.animate.bind(this);
     this.updateScene = this.updateScene.bind(this);
@@ -71,16 +73,19 @@ class IridescentVisionApp {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(width, height);
     this.renderer.setClearColor('#2c123a');
+    this.canvas = this.renderer.domElement;
+    this.canvas.style.opacity = '0';
+    this.canvas.style.pointerEvents = 'none';
+    this.canvas.style.transition = 'opacity 1s ease';
+    this.canvas.style.filter = 'blur(10px)';
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enable = true;
 
-    this.background = new Background(this.renderer, this.scene);
+    this.background = new FiberForestBackground(this.renderer, this.scene);
 
     this.initSound();
-    this.textLayer = new TextLayer(() => {
-      if (this.soundHandler) this.soundHandler.start();
-    });
+    this.textLayer = new TextLayer(() => this.handleStart());
 
     this.handleManager();
     this.initLight();
@@ -305,13 +310,13 @@ class IridescentVisionApp {
     this.softVolume = new SoftVolume(this.scene, this.mesh, true, this.soundHandler);
   }
 
-  updateScene() {
-    if (!this.renderer || !this.camera) return;
+  updateScene(delta = 0) {
+    if (!this.renderer || !this.camera || !this.isStarted) return;
     if (this.softVolume) this.softVolume.update(this.camera);
     if (this.glassSkin) this.glassSkin.update(this.renderer, this.camera);
     if (this.mouseLight) this.mouseLight.update(this.mesh);
-    if (this.background && this.mesh && this.face) {
-      this.background.update(this.camera, this.mesh, this.face);
+    if (this.background) {
+      this.background.update(delta, this.camera, this.mesh, this.face);
     }
     if (this.gravity && this.face) {
       const offset = this.face.position.clone().add(new THREE.Vector3(-2, 0, 23));
@@ -328,8 +333,10 @@ class IridescentVisionApp {
     if (!this.renderer || !this.camera) return;
     const delta = this.lastTime ? (time - this.lastTime) / 1000 : 0;
     this.lastTime = time;
-    this.updater.update(delta);
-    this.renderer.render(this.scene, this.camera);
+    if (this.isStarted) {
+      this.updater.update(delta);
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   handleLoading() {
@@ -358,6 +365,7 @@ class IridescentVisionApp {
       'keydown',
       (e) => {
         const keyID = e.code;
+        if (!this.isStarted) return;
         if (keyID === 'KeyA') {
           if (this.gravity) {
             this.gravity.disable();
@@ -463,7 +471,7 @@ class IridescentVisionApp {
     this.controls.enabled = false;
 
     if (!this.background) {
-      this.background = new Background(this.renderer, this.scene);
+      this.background = new FiberForestBackground(this.renderer, this.scene);
       this.background.enable();
     } else {
       this.background.disable();
@@ -570,6 +578,18 @@ class IridescentVisionApp {
       },
       false
     );
+  }
+
+  handleStart() {
+    if (this.isStarted) return;
+    this.isStarted = true;
+    if (this.background) this.background.enable();
+    if (this.canvas) {
+      this.canvas.style.opacity = '1';
+      this.canvas.style.pointerEvents = 'auto';
+      this.canvas.style.filter = 'none';
+    }
+    if (this.soundHandler) this.soundHandler.start();
   }
 }
 
