@@ -59,12 +59,12 @@ var Gravity = function (scene, mesh, soundHandler) {
     let initSound = () => {
         player = soundHandler.loadPlayer([ballFly, ballRoll]);
         player[ROLL].volume.value = 15;
-        let context = require.context('./sounds/collide/', true, /\.(mp3)$/);
-        let soundFiles=[];
-        context.keys().forEach((filename)=>{
-            soundFiles.push(context(filename));
-            colNum++;
+        const collideModules = import.meta.glob('./sounds/collide/*.mp3', {
+            eager: true,
+            import: 'default'
         });
+        let soundFiles = Object.values(collideModules);
+        colNum = soundFiles.length;
         let player1 = soundHandler.loadPlayer(soundFiles);
         player1 = player1.concat(soundHandler.loadPlayer(soundFiles));
         player1 = player1.concat(soundHandler.loadPlayer(soundFiles));

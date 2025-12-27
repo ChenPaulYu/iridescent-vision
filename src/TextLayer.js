@@ -1,4 +1,4 @@
-import loadingPage from './loading.html';
+import loadingPage from './loading.html?raw';
 import { disableBodyScroll, enableBodyScroll, clearAllBodyScrollLocks } from 'body-scroll-lock';
 
 let TextLayer = function(startCallBack) {

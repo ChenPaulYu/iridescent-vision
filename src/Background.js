@@ -1,14 +1,14 @@
 import * as THREE from 'three';
+import Building from './background/building.js';
 
-var Background = function (renderer, scene) {
+
+var Background = function (renderer, scene, tintColor = 0x2c123a) {
     let ambientLight, hemiLight
-    let Building = require('./background/building').default;
     let bldgs  = []
     let delta_speed = 0
-    let bldgColor = 0x624eba, lightColor = 0x444444, skyColor = 0x343161, recoverColor = 0xFFFFFF,
-        chunkSize = 120, chunksAtATime = 6, lgBldgSize = 24;
+    let lightColor = 0x9c62ff, backgroundColor = tintColor, recoverColor = 0x2c123a,
+        chunkSize = 120, chunksAtATime = 6;
 
-    // bldgColor = 0x8e57b5
 
     this.speedup = false
     this.scene = scene;
@@ -154,18 +154,11 @@ var Background = function (renderer, scene) {
     }
 
     let initBackground = (renderer) => {
-
-        // for (var child of this.scene.children) {
-        //     this.uuid.push(child.uuid)
-        // } 
-
-        renderer.setClearColor(new THREE.Color(skyColor));
+        renderer.setClearColor(new THREE.Color(backgroundColor));
         renderer.shadowMap.enabled = true;
         backgroundGenerate(chunkSize, chunksAtATime)
         lightGenerate(lightColor, this.brightness)
-        this.scene.fog = new THREE.Fog(skyColor, 0.01, this.fogDistance);
-        
-
+        this.scene.fog = new THREE.Fog(backgroundColor, 0.01, this.fogDistance);
     }
 
     this.enable = () => {

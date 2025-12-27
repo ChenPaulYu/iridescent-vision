@@ -2,42 +2,27 @@
   "name": "Iridescent-Vision",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "homepage": "https://github.com/Sonia-lai/Iridescent-Vision",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server --mode development --open --host 0.0.0.0",
-    "build": "webpack --mode production",
+    "dev": "vite --host 0.0.0.0",
+    "start": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
     "deploy": "gh-pages -d dist"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@babel/core": "7.7.2",
-    "@babel/plugin-proposal-class-properties": "7.7.4",
-    "@babel/plugin-transform-runtime": "^7.7.6",
-    "@babel/preset-env": "7.7.1",
-    "babel-cli": "6.26.0",
-    "babel-loader": "8.0.6",
-    "babel-preset-env": "1.7.0",
-    "cannon": "0.6.2",
-    "file-loader": "^4.3.0",
-    "gh-pages": "2.1.1",
-    "gltf-loader-2": "0.0.3",
-    "gltf-webpack-loader": "1.0.6",
-    "html-loader": "^0.5.5",
-    "html-webpack-plugin": "3.2.0",
-    "three": "0.110.0",
-    "three-gltf-loader": "1.110.0",
-    "webfont": "^9.0.0",
-    "webpack": "4.41.2",
-    "webpack-cli": "3.3.10",
-    "webpack-dev-server": "3.9.0",
-    "@babel/runtime": "^7.7.7",
-    "body-scroll-lock": "^2.6.4",
-    "dat.gui": "^0.7.6",
-    "oimo": "^1.0.9",
-    "tone": "^13.8.25"
+    "gh-pages": "^6.2.0",
+    "vite": "^6.0.5"
   },
-  "dependencies": {}
+  "dependencies": {
+    "body-scroll-lock": "^2.7.0",
+    "cannon": "^0.6.2",
+    "dat.gui": "^0.7.9",
+    "oimo": "^1.0.9",
+    "three": "^0.110.0",
+    "tone": "^13.8.25",
+    "webfont": "^9.0.0"
+  }
 }

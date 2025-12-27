@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import GLTFLoader from 'three-gltf-loader';
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import maskPath from './models/mask3.gltf';
-// import maskPath from './models/mask.gltf';
 import headPath from './models/Taj.gltf';
 import { MouseLight } from './MouseLight';
 import { GlassSkin } from './GlassSkin';
@@ -10,7 +9,6 @@ import { SoftVolume } from './SoftVolume';
 import { Background } from './Background'
 import { HeadMove } from './HeadMove'
 import {Activity} from './Activity'
-import * as dat from 'dat.gui';
 import { Gravity } from './Gravity'
 import { SoundHandler } from './SoundHandler';
 import {TextLayer} from './TextLayer';
@@ -26,10 +24,6 @@ var background, gravity, headmove, activity;
 var controls;
 var directionalLight;
 
-// var raycaster = new THREE.Raycaster(), INTERSECTED;
-// var mouse = new THREE.Vector2();
-// var eventType, sphere;
-// var loadingAnimateTimer;
 var soundHandler;
 var textLayer;
 
@@ -40,30 +34,23 @@ var totalLoad = 25+20;
 
 var bgTexture;
 
+
 init();
 animate();
 
 function initSound() {
     soundHandler = new SoundHandler(soundOnProgress);
-    //call soundHandler.play() when click?
-    //return;
     soundHandler.schedule(() => {
-        //soundHandler.consoleNow();
-        //console.log('start');
         soundHandler.playBG();
         softVolume.enable();
         background.enable();
-        //soundHandler.consoleNow();
         soft2Gravity();
     }, 0, 0);
     
     let soft2Gravity = () => {
         soundHandler.scheduleToneTime(()=>{
-            //soundHandler.consoleNow();
-            //console.log('yo!');
-            //soundHandler.consoleNow();
+
             var count = 0
-            //flash();
             var interval = setInterval(() => {
                 flash();
                 count += 1
@@ -75,7 +62,6 @@ function initSound() {
                 softVolume.dispose();
                 softVolume = undefined;
             }
-            //gravity = new Gravity(scene, mesh, soundHandler);
             gravity.enable()
             background.direction = 'up'
             bumpFlash();
@@ -101,28 +87,6 @@ function initSound() {
             bumpFlash();
         }, 0, 30);
     }
-    //soundHandler.schedule(() => {
-        //soundHandler.consoleNow();
-        //alert();
-        // var count = 0
-        // var interval = setInterval(() => {
-        //     flash()
-        //     count += 1
-        //     if (count > 10) { clearInterval(interval) }
-        // }, 100);
-
-        // if (softVolume) {
-        //     softVolume.disable();
-        //     softVolume.dispose();
-        //     softVolume = undefined;
-        // }
-        // //gravity = new Gravity(scene, mesh, soundHandler);
-        // gravity.enable()
-        // background.direction = 'up'
-        // bumpFlash();
-    //}, 0, 29);
-
-   // return;
     
     let bumpFlash = () => {
         soundHandler.schedule(() => {
@@ -133,7 +97,6 @@ function initSound() {
                 if (count > 5) {clearInterval(interval)}
             }, 200);
             speedupBg();
-        //}, 0, 48.5)
         }, 0, 45);
     }
 
@@ -143,20 +106,17 @@ function initSound() {
                 background.speedup = true
             }
             
-        //}, 1, 6)
         }, 1, 4);
         gravity2Glass();
     }
     
     let gravity2Glass = () => {
         soundHandler.schedule(() => {
-            //renderer.setClearColor('#000000');
             gravity.disable()
             gravity = null
             testTransparent(2300);
             headmove = new HeadMove(renderer, camera, scene, face, mesh, controls)
             headmove.enable(camera, face, mesh)
-        //}, 1, 10);
         }, 1, 5.5);
         shakeHead();
     }
@@ -177,17 +137,10 @@ function initSound() {
 
             headmove.changeMode('shake', camera, face, mesh)
             
-            // console.log('seperate mask and head?');
         }, 1, 38.4);
-        //lash1();
         headFlake();
     }
 
-    // let flash1 = () => {
-    //     soundHandler.schedule(() => {
-    //         flash();
-    //     }, 1, 41);
-    // }
     
     let headFlake = () => {
         soundHandler.schedule(() => {
@@ -227,7 +180,6 @@ function initSound() {
             }
             activity = new Activity(camera, scene, controls)
             activity.enable();
-            //textLayer.addMoreSpan('MORE');
         }, 2, 9);
     }    
 
@@ -246,11 +198,10 @@ function init() {
     camera.position.set(0, 10, 50);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
-    renderer.setClearColor('#FFFFFF');
+    renderer.setClearColor('#2c123a');
 
     controls = new OrbitControls(camera, renderer.domElement)
     controls.enable = true;
-    //testBackground();
     background = new Background(renderer, scene);
 
     initSound();
@@ -265,7 +216,6 @@ function init() {
     document.body.appendChild(renderer.domElement);
     initDocument()
     window.addEventListener( 'resize', onWindowResized, false );
-    //testEvent();
 }
 
 
@@ -274,9 +224,6 @@ function initDocument () {
     document.querySelector('body').style.margin = "0px"; 
     document.querySelector('body').style.height = "100%"; 
 
-    // document.querySelector('canvas').style.width = "100%"; 
-    // document.querySelector('canvas').style.height = "100%"; 
-    // document.querySelector('canvas').style.display = "block"; 
 }
 
 
@@ -360,30 +307,6 @@ function resizeRendererToDisplaySize(renderer) {
     return needResize;
   }
 
-// function animateValue(start, end, duration) {
-//     var range = end - start;
-//     if (range == 0) return;
-//     var increment = 2;
-//     var current = start+increment;
-//     current = Math.min(current, end);
-//     //textLayer.changeText(current+'%');
-//     var stepTime = Math.abs(Math.floor(duration / range));
-//     loadingAnimateTimer = setInterval(function() {
-//         current += increment;
-//         current = Math.min(current, end);
-//         //textLayer.changeText(current.toFixed(0)+'%');
-//         if (current == end) {
-//             loadFinish();
-//             clearInterval(loadingAnimateTimer);
-//         }
-//     }, stepTime);
-// }
-
-// function loadFinish() {
-//     if (soundLoad + managerLoad < totalLoad) return;
-//     console.log('load finish!');
-//     textLayer.addButton('CLICK');
-// }
 
 function handleLoading() {
     if (soundLoad + managerLoad < totalLoad) return;
@@ -391,9 +314,7 @@ function handleLoading() {
 }
 
 function soundOnProgress(l) {
-    soundLoad = l;
-    //console.log(soundLoad, managerLoad);
-    
+    soundLoad = l;    
     handleLoading();
 }
 
@@ -567,7 +488,7 @@ function testTransparent(time) {
         //const loader = new THREE.TextureLoader();
         //const bgTexture = loader.load(domeImage);
         //scene.background = bgTexture;
-        renderer.setClearColor('#457552')
+        renderer.setClearColor('#5a2c7f')
     }, time)
     
     
@@ -597,13 +518,13 @@ function backgroundFlash(color, visible) {
     mesh.visible = visible
     if (!visible) {
         if (Math.floor(Math.random() * 2)) {
-            renderer.setClearColor('#17202A');
+            renderer.setClearColor('#1a0f24');
         } else {
-            renderer.setClearColor('#FFFFFF');
+            renderer.setClearColor('#311a47');
         }
     } else {
         scene.background = undefined;
-        renderer.setClearColor('#FFFFFF');
+        renderer.setClearColor('#311a47');
     }
     
     setTimeout(() => {
@@ -618,22 +539,12 @@ function backgroundFlash(color, visible) {
     }, 100);
 }
 
-// window.onresize = function () {
-//     let w = window.innerWidth;
-//     let h = window.innerHeight;
-//     camera.aspect = w / h;
-//     camera.updateProjectionMatrix();
-//     renderer.setSize(w, h);
-// }
-
 function onWindowResized( event ) {
     let w = window.innerWidth;
     let h = window.innerHeight;
     renderer.setSize( w, h );
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-
-    //camera.projectionMatrix.makePerspective( 75, window.innerWidth /window.innerHeight, 0.1, 1000 ); //使用者更新投影矩陣 並依照數值改變整個場景物件大小
  }
 
  function disableZoom() {

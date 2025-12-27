@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { throws } from 'assert';
 
 export default class Building {
     constructor(x, y, z, height, rotX = 0, rotY = 0, rotZ = 0) {
@@ -33,9 +32,9 @@ export default class Building {
         // });
 
         this.mat = new THREE.MeshPhongMaterial({
-            color: 0x624eba,
-            emissive: 0xc325e,
-            specular: 0x441833,
+            color: 0x8d5fd3,
+            emissive: 0x311a47,
+            specular: 0xdcb5ff,
             side: THREE.DoubleSide,
             alphaTest: 0.7,
             shininess: 30

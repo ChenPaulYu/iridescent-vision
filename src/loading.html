@@ -52,7 +52,7 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(transparent, rgba(255,255,255,0.5) 60%);
+  background: conic-gradient(from 90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(213,154,255,0.4) 75%, rgba(255,255,255,0));
   animation: spin 1.5s infinite linear;
 }
 .loader:after {
@@ -63,7 +63,7 @@
   top: 2.5%;
   left: 2.5%;
   border-radius: 50%;
-  background-color: rgba(53,50,97,1);
+  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(209,133,255,0.8) 60%, rgba(44,18,58,0.8) 100%);
 }
 .fadeout, .fadeout:before{
     animation: disappear 1s linear forwards;
@@ -81,8 +81,8 @@
     bottom: 0;
     margin: auto;
     border-radius: 50%;
-    background-color: rgba(255,255,255,0.6);
-    box-shadow: 0 0 10px rgba(255,255,255,0.6);
+    background: radial-gradient(circle, rgba(255,255,255,0.95) 10%, rgba(145,84,206,0.9) 70%, rgba(44,18,58,0.95) 100%);
+    box-shadow: 0 0 18px rgba(164,118,255,0.8);
 
     display:flex;
     justify-content: center;
@@ -100,14 +100,14 @@
     top: 2.5%;
     left: 2.5%;
     border-radius: 50%;
-    background-color: rgba(53,50,97,1);
+    background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(221,166,255,0.7) 65%, rgba(44,18,58,0.8) 100%);
 }
 .start:hover:after{
-    background-color: rgba(53,50,97,0.1);
+    background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(176,118,255,0.9) 40%, rgba(49,26,71,0.7) 100%);
 }
 
 #start span {
-    color: rgba(53,50,97,0.5);
+    color: rgba(255, 255, 255,0.85);
     font-family: helvetica;
 }
 

@@ -3,15 +3,17 @@
 
 ### Run Locally
 ```bash
-
-# install dependency
+# install dependencies
 $ npm install
 
-# start dev-server
-$ npm run start
+# start the dev server
+$ npm run dev
 
-# bundle all files
+# create a production bundle
 $ npm run build
+
+# preview the production build locally
+$ npm run preview
 
 ```
 
