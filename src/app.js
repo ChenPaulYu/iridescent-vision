@@ -433,11 +433,26 @@ class IridescentVisionApp {
       uTime: { value: 0 },
     };
 
+    // Light ornament: precomputes a per-vertex pattern signal that
+    // bakes mehndi-like ridges into the geometry pass. The fragment
+    // shader stays tiny so high-resolution mask geometries don't
+    // burn fill rate.
     const ornamentVertex = `
-      varying vec3 vWorldNormal;
+      uniform float uOrnamentFlow;
+      uniform float uTime;
+      varying float vPattern;
+      varying float vForehead;
+
       void main() {
-        vWorldNormal = normalize(normalMatrix * normal);
-        vec3 inflated = position + normal * 0.05;
+        float ridge = sin(position.y * 8.0 + uTime * 0.6 * uOrnamentFlow)
+                    * cos(position.x * 6.5 - uTime * 0.4 * uOrnamentFlow);
+        vPattern = smoothstep(0.75, 0.95, abs(ridge));
+
+        float foreheadY = smoothstep(1.2, 2.8, position.y);
+        float foreheadCenter = 1.0 - smoothstep(0.0, 1.0, abs(position.x));
+        vForehead = foreheadY * foreheadCenter;
+
+        vec3 inflated = position + normal * 0.06;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(inflated, 1.0);
       }
     `;
@@ -447,82 +462,26 @@ class IridescentVisionApp {
       uniform float uOrnamentReveal;
       uniform float uThirdEyeReveal;
       uniform float uOrnamentPulse;
-      uniform float uOrnamentFlow;
       uniform float uOrnamentFlake;
       uniform float uIridescentShift;
       uniform vec3 uOrnamentColor;
-      varying vec3 vWorldNormal;
-
-      vec3 ornHueShift(vec3 col, float amount) {
-        const vec3 k = vec3(0.57735, 0.57735, 0.57735);
-        float c = cos(amount);
-        float s = sin(amount);
-        return col * c + cross(k, col) * s + k * dot(k, col) * (1.0 - c);
-      }
-
-      float ornHash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-      }
-
-      float ornNoise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(
-          mix(ornHash(i), ornHash(i + vec2(1.0, 0.0)), f.x),
-          mix(ornHash(i + vec2(0.0, 1.0)), ornHash(i + vec2(1.0, 1.0)), f.x),
-          f.y
-        );
-      }
-
-      vec2 ornUvFromNormal(vec3 n) {
-        float u = atan(n.x, n.z) / 6.28318 + 0.5;
-        float v = acos(clamp(n.y, -1.0, 1.0)) / 3.14159;
-        return vec2(u, v);
-      }
-
-      float ornMehndi(vec2 p, float flow) {
-        p *= 14.0;
-        p += vec2(flow * uTime * 0.4, sin(p.x * 0.5 + uTime * flow * 0.3) * 0.6);
-        float a = sin(p.x * 1.3 + sin(p.y * 2.1) * 0.5);
-        float b = cos(p.y * 1.7 + sin(p.x * 1.9) * 0.5);
-        return smoothstep(0.86, 0.99, abs(a * b));
-      }
-
-      float ornGirih(vec2 p) {
-        vec2 c = (p - 0.5);
-        float r = length(c);
-        float a = atan(c.y, c.x);
-        float sectors = abs(sin(a * 6.0));
-        float rings = abs(sin(r * 22.0));
-        return smoothstep(0.88, 0.99, sectors * rings);
-      }
-
-      float ornThirdEye(vec2 p) {
-        vec2 c = p - vec2(0.5, 0.28);
-        float r = length(c);
-        float disc = exp(-r * r * 280.0);
-        float ring = exp(-pow(r - 0.07, 2.0) * 800.0) * 0.55;
-        return disc + ring;
-      }
+      varying float vPattern;
+      varying float vForehead;
 
       void main() {
-        vec3 n = normalize(vWorldNormal);
-        vec2 ornUv = ornUvFromNormal(n);
+        float pulse = 1.0 + sin(uTime * 1.3) * 0.3 * uOrnamentPulse;
+        float flakeMask = 1.0 - uOrnamentFlake * (0.6 + 0.4 * sin(vPattern * 30.0 + uTime));
+        float orn = vPattern * uOrnamentReveal * pulse * flakeMask;
+        float eye = vForehead * uThirdEyeReveal;
 
-        float mehndi = ornMehndi(ornUv, uOrnamentFlow);
-        float girih = ornGirih(ornUv);
-        float thirdEye = ornThirdEye(ornUv) * uThirdEyeReveal;
+        float total = orn + eye;
+        if (total < 0.01) discard;
 
-        float baseOrn = max(mehndi, girih * 0.85) * uOrnamentReveal;
-        float pulse = 0.7 + 0.3 * sin(uTime * 1.3) * uOrnamentPulse;
-        float flake = 1.0 - smoothstep(0.0, 1.0, uOrnamentFlake * (0.4 + 0.6 * ornNoise(ornUv * 18.0 + uTime * 0.4)));
-        float orn = baseOrn * pulse * flake + thirdEye;
+        vec3 col = uOrnamentColor;
+        col.r *= 1.0 + uIridescentShift * sin(uTime * 0.6);
+        col.b *= 1.0 + uIridescentShift * cos(uTime * 0.6);
 
-        if (orn < 0.01) discard;
-
-        vec3 ornCol = ornHueShift(uOrnamentColor, sin(uTime * 0.6 + ornUv.y * 4.0) * uIridescentShift);
-        gl_FragColor = vec4(ornCol * orn, orn * 0.9);
+        gl_FragColor = vec4(col * total, total * 0.85);
       }
     `;
 
