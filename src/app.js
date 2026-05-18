@@ -128,6 +128,7 @@ class IridescentVisionApp {
           this.cosmicDome.setAstrolabeIntensity(0.28, 2000);
           this.cosmicDome.setIntensity(0.18, 2000);
         }
+        this.tweenOrnament({ reveal: 1.0 }, 1800);
       }, 27.5);
 
       this.soundHandler.scheduleToneTime(() => {
@@ -188,6 +189,7 @@ class IridescentVisionApp {
           this.cosmicDome.setAstrolabeIntensity(1.0, 800);
           this.cosmicDome.pulseAstrolabe(1.0, 700, 800);
         }
+        this.tweenOrnament({ pulse: 1.0, iridescentShift: 0.4 }, 700);
         this.setBackgroundPalette('ascension');
       }, 1, 4);
       gravity2Glass();
@@ -206,6 +208,7 @@ class IridescentVisionApp {
           this.cosmicDome.bloomYantra(1500);
           this.cosmicDome.setMantraIntensity(0.7, 4000);
         }
+        this.tweenOrnament({ flow: 1.0, thirdEye: 1.0, iridescentShift: 1.0 }, 1500);
       }, 1, 5.5);
       shakeHead();
     };
@@ -280,6 +283,7 @@ class IridescentVisionApp {
         this.setHeadmoveMode('flake');
         this.setBackgroundPalette('reflection');
         if (this.cosmicDome) this.cosmicDome.decompose(8000);
+        this.tweenOrnament({ flake: 0.95, thirdEye: 0, reveal: 0.1 }, 8000);
       }, 3, 44);
       enableActivity();
     };
