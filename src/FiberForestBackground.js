@@ -18,6 +18,8 @@ const fiberVertexShader = /* glsl */`
   attribute float instDepth;
   varying float vProgress;
   varying float vNoise;
+  varying float vHue;
+  varying float vBrightness;
 
   float softNoise(float x) {
     return sin(x) * 0.5 + sin(x * 0.35) * 0.35 + sin(x * 0.1) * 0.15;
@@ -63,6 +65,8 @@ const fiberVertexShader = /* glsl */`
 
     vProgress = t;
     vNoise = wave + ripple * 0.3;
+    vHue = instSeed.x * 0.5 + instSeed.z * 0.5;
+    vBrightness = 0.55 + instSeed.y * 0.45;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(finalPosition, 1.0);
   }
@@ -75,12 +79,24 @@ const fiberFragmentShader = /* glsl */`
   uniform float uForestIntensity;
   varying float vProgress;
   varying float vNoise;
+  varying float vHue;
+  varying float vBrightness;
 
   void main() {
     float alpha = smoothstep(0.02, 0.2, vProgress) * (1.0 - vProgress);
+    // Frayed-tip artefact: noise breaks the upper third of the fiber.
+    float fray = 1.0 - smoothstep(0.55, 0.95, vProgress) * (0.35 + 0.4 * sin(vNoise * 12.0 + vHue * 30.0));
+    alpha *= fray;
+
     vec3 color = mix(uBaseColor, uTipColor, pow(vProgress, 0.55));
-    color += uGlowColor * (0.2 + 0.4 * (1.0 - vProgress) + vNoise * 0.05);
-    gl_FragColor = vec4(color, alpha * 0.9 * uForestIntensity);
+    color += uGlowColor * (0.18 + 0.35 * (1.0 - vProgress) + vNoise * 0.12);
+
+    // Per-fiber hue shift inside the iridescent family.
+    vec3 hueOffset = vec3((vHue - 0.5) * 0.18, (vHue - 0.5) * -0.05, (vHue - 0.5) * 0.22);
+    color += hueOffset;
+    color *= vBrightness;
+
+    gl_FragColor = vec4(color, alpha * 0.9 * uForestIntensity * (0.7 + 0.3 * vBrightness));
     if (gl_FragColor.a < 0.02) discard;
   }
 `;
