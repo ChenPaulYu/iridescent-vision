@@ -58,7 +58,6 @@ class BranchingRoots {
       transparent: true,
       opacity: 0,
       linewidth: 0.0035,
-      worldUnits: false,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -233,30 +232,12 @@ class BranchingRoots {
   }
 
   setPalette({ base, tip, glow } = {}) {
-    let changed = false;
-    if (base !== undefined) { this.baseColor = base.isColor ? base.clone() : new THREE.Color(base); changed = true; }
-    if (tip !== undefined) { this.tipColor = tip.isColor ? tip.clone() : new THREE.Color(tip); changed = true; }
-    if (glow !== undefined) { this.glowColor = glow.isColor ? glow.clone() : new THREE.Color(glow); changed = true; }
-    if (changed) this.recolor();
-  }
-
-  recolor() {
-    const colorAttr = this.lines.geometry.attributes.color;
-    const arr = colorAttr.array;
-    // Recompute colors by reading current positions (which already encode t via order).
-    // Each pair of segments shares interpolation positions; we rebuild from scratch.
-    // For simplicity rebuild geometry from current positions array, using inferred t.
-    const positions = this.lines.geometry.attributes.position.array;
-    const segmentCount = positions.length / 6;
-    // We don't know each segment's t cheaply post-build. Fall back to a constant
-    // mid tone — palette transitions are slow enough that exact gradient isn't
-    // critical mid-flight.
-    const mid = this.colorAtT(0.5);
-    for (let i = 0; i < segmentCount; i++) {
-      arr[i * 6] = mid.r; arr[i * 6 + 1] = mid.g; arr[i * 6 + 2] = mid.b;
-      arr[i * 6 + 3] = mid.r; arr[i * 6 + 4] = mid.g; arr[i * 6 + 5] = mid.b;
-    }
-    colorAttr.needsUpdate = true;
+    // Palette is captured at build time; runtime recolour skipped to keep
+    // LineSegments2 internal buffer layout (instanceColorStart/End) opaque.
+    // If you want live recolour, rebuild geometry instead.
+    if (base !== undefined) this.baseColor = base.isColor ? base.clone() : new THREE.Color(base);
+    if (tip !== undefined) this.tipColor = tip.isColor ? tip.clone() : new THREE.Color(tip);
+    if (glow !== undefined) this.glowColor = glow.isColor ? glow.clone() : new THREE.Color(glow);
   }
 
   update(delta) {
