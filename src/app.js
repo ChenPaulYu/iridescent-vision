@@ -8,6 +8,7 @@ import { GlassSkin } from './GlassSkin';
 import { SoftVolume } from './SoftVolume';
 import { FiberForestBackground } from './FiberForestBackground';
 import { CosmicDome } from './CosmicDome';
+import { PrayerBeads } from './PrayerBeads';
 import { HeadMove } from './HeadMove';
 import { Activity } from './Activity';
 import { Gravity } from './Gravity';
@@ -33,6 +34,7 @@ class IridescentVisionApp {
     this.softVolume = null;
     this.background = null;
     this.cosmicDome = null;
+    this.prayerBeads = null;
     this.gravity = null;
     this.headmove = null;
     this.activity = null;
@@ -96,6 +98,9 @@ class IridescentVisionApp {
     this.cosmicDome = new CosmicDome(this.renderer, this.scene);
     this.cosmicDome.enable();
     this.cosmicDome.setIntensity(0.08);
+    this.prayerBeads = new PrayerBeads(this.scene);
+    this.prayerBeads.enable();
+    this.prayerBeads.setIntensity(0);
     this.setBackgroundPalette('awakening');
 
     this.initSound();
@@ -209,6 +214,7 @@ class IridescentVisionApp {
           this.cosmicDome.setMantraIntensity(0.7, 4000);
         }
         this.tweenOrnament({ flow: 1.0, thirdEye: 1.0, iridescentShift: 1.0 }, 1500);
+        if (this.prayerBeads) this.prayerBeads.setIntensity(1.0, 1800);
       }, 1, 5.5);
       shakeHead();
     };
@@ -284,6 +290,7 @@ class IridescentVisionApp {
         this.setBackgroundPalette('reflection');
         if (this.cosmicDome) this.cosmicDome.decompose(8000);
         this.tweenOrnament({ flake: 0.95, thirdEye: 0, reveal: 0.1 }, 8000);
+        if (this.prayerBeads) this.prayerBeads.setIntensity(0, 6000);
       }, 3, 44);
       enableActivity();
     };
@@ -594,6 +601,9 @@ class IridescentVisionApp {
     if (this.cosmicDome) {
       this.cosmicDome.resonateWith(mode);
     }
+    if (this.prayerBeads) {
+      this.prayerBeads.resonateWith(mode);
+    }
   }
 
   cinematicBuildup(duration = 2000) {
@@ -661,6 +671,7 @@ class IridescentVisionApp {
     if (this.ornamentUniforms) {
       this.ornamentUniforms.uTime.value += delta;
     }
+    if (this.prayerBeads && this.mesh) this.prayerBeads.update(delta, this.mesh.position);
     if (this.gravity && this.face) {
       const offset = this.face.position.clone().add(new THREE.Vector3(-2, 0, 23));
       this.gravity.update(offset);
