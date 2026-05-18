@@ -104,7 +104,7 @@ const mantraFragmentShader = /* glsl */`
   float fbm(vec2 p) {
     float v = 0.0;
     float a = 0.5;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
       v += a * vnoise(p);
       p *= 2.0;
       a *= 0.5;
@@ -246,7 +246,7 @@ class CosmicDome {
     this.scene = scene;
     this.options = Object.assign(
       {
-        ambientCount: 2200,
+        ambientCount: 1500,
         shellInnerRadius: 28,
         shellOuterRadius: 95,
         baseColor: 0x180b2c,
@@ -604,6 +604,12 @@ class CosmicDome {
     if (!this.enabled) return;
     this.uniforms.uTime.value += delta;
 
+    // Skip rasterising layers that contribute nothing this frame.
+    this.dustPoints.visible = this.intensity > 0.001;
+    this.yantraMesh.visible = this.bloomAmount > 0.001;
+    this.astrolabeMesh.visible = this.astrolabeIntensity > 0.001;
+    this.mantraMesh.visible = this.mantraIntensity > 0.001;
+
     if (this.resonanceMode === 'shake') {
       this.shakePhase += delta * 1.7;
       this.group.rotation.z = Math.sin(this.shakePhase) * 0.05;
@@ -680,8 +686,8 @@ class CosmicDome {
 
     if (this.burstPoints) {
       const pool = this.burstPoints;
-      const positions = pool.geometry.attributes.position.array;
       const lives = pool.geometry.attributes.burstLife.array;
+      const positions = pool.geometry.attributes.position.array;
       const velocities = pool.userData.velocities;
       const maxLives = pool.userData.maxLives;
       const cap = this.options.burstCapacity;
@@ -698,6 +704,7 @@ class CosmicDome {
         const decay = delta / maxLives[i];
         lives[i] = Math.max(0, lives[i] - decay);
       }
+      pool.visible = anyAlive;
       if (anyAlive) {
         pool.geometry.attributes.position.needsUpdate = true;
         pool.geometry.attributes.burstLife.needsUpdate = true;

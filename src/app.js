@@ -658,6 +658,11 @@ class IridescentVisionApp {
     if (this.cosmicDome) this.cosmicDome.update(delta);
     if (this.ornamentUniforms) {
       this.ornamentUniforms.uTime.value += delta;
+      if (this.ornamentMesh) {
+        const r = this.ornamentUniforms.uOrnamentReveal.value;
+        const e = this.ornamentUniforms.uThirdEyeReveal.value;
+        this.ornamentMesh.visible = r > 0.02 || e > 0.02;
+      }
     }
     if (this.prayerBeads && this.mesh) this.prayerBeads.update(delta, this.mesh.position);
     if (this.goldFlakeState.active && this.cosmicDome && this.mesh) {
