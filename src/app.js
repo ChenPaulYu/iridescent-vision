@@ -519,22 +519,31 @@ class IridescentVisionApp {
         // Reveal / pulse / flake modulation.
         float pulse = 1.0 + sin(uTime * 1.3) * 0.35 * uOrnamentPulse;
         float flakeMask = 1.0 - uOrnamentFlake * (0.55 + 0.45 * noise);
-        float orn = pattern * uOrnamentReveal * pulse * flakeMask;
-        float total = orn + eye;
+
+        // BASE coverage so the whole face shimmers iridescent (oil-on-
+        // water effect) — face never reads flat once reveal is on.
+        float baseCoverage = uOrnamentReveal * 0.55 * pulse * flakeMask;
+        // PATTERN layer adds bright ridges on top of the base shimmer.
+        float patternLayer = pattern * uOrnamentReveal * pulse * flakeMask * 1.3;
+        // EYE layer for the third-eye region.
+        float eyeLayer = eye * 1.4;
+
+        float total = baseCoverage + patternLayer + eyeLayer;
         if (total < 0.005) discard;
 
-        // Three-colour iridescent: viewing angle picks base hue, the
-        // per-pixel noise then shifts it locally so every ridge has a
-        // slightly different tone.
+        // Three-colour iridescent: viewing angle picks base hue, time
+        // and noise add per-position swirl so every patch is unique.
         float facing = pow(vFacing, 1.4);
         vec3 viewBase = mix(uOrnamentLavender, uOrnamentGold, facing);
-        vec3 viewHi = mix(viewBase, uOrnamentCyan, pow(vFacing, 4.5) * 0.75);
+        vec3 viewHi = mix(viewBase, uOrnamentCyan, pow(vFacing, 4.5) * 0.85);
 
-        float localShift = noise * 1.4 + sin(uTime * 0.6 + vLocalPos.y * 3.0) * 0.5;
-        vec3 swirl = mix(viewHi, uOrnamentCyan, localShift * 0.25 * uIridescentShift);
-        swirl = mix(swirl, uOrnamentLavender, smoothstep(0.6, 1.0, noise) * 0.3);
+        float swirlShift = noise * 1.4
+                         + sin(uTime * 0.5 + vLocalPos.y * 2.5) * 0.55
+                         + sin(uTime * 0.7 + vLocalPos.x * 3.2) * 0.45;
+        vec3 oilFilm = mix(viewHi, uOrnamentCyan, swirlShift * 0.35 * uIridescentShift);
+        oilFilm = mix(oilFilm, uOrnamentLavender, smoothstep(0.55, 1.0, noise) * 0.4);
 
-        gl_FragColor = vec4(swirl * total * 1.5, total * 0.9);
+        gl_FragColor = vec4(oilFilm * total * 1.35, total * 0.82);
       }
     `;
 
@@ -544,7 +553,7 @@ class IridescentVisionApp {
       fragmentShader: ornamentFragment,
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       side: THREE.FrontSide,
     });
 
