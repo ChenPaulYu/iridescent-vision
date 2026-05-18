@@ -66,6 +66,14 @@ class PrayerBeads {
     this.group.visible = false;
   }
 
+  setPalette({ gold } = {}) {
+    if (gold === undefined) return;
+    const color = gold.isColor ? gold : new THREE.Color(gold);
+    for (const strand of this.strands) {
+      strand.material.color.copy(color);
+    }
+  }
+
   setIntensity(target, durationMs = 0) {
     const clamped = Math.max(0, Math.min(1, target));
     this.targetIntensity = clamped;

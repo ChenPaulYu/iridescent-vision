@@ -419,10 +419,10 @@ class FiberForestBackground {
     this.renderer.setClearColor(targetColor);
   }
 
-  setPalette({ base, tip, glow }) {
-    if (base) this.uniforms.uBaseColor.value.set(base);
-    if (tip) this.uniforms.uTipColor.value.set(tip);
-    if (glow) this.uniforms.uGlowColor.value.set(glow);
+  setPalette({ base, tip, glow } = {}) {
+    if (base !== undefined) this.uniforms.uBaseColor.value.set(base);
+    if (tip !== undefined) this.uniforms.uTipColor.value.set(tip);
+    if (glow !== undefined) this.uniforms.uGlowColor.value.set(glow);
   }
 
   update(delta = 0) {

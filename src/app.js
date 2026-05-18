@@ -18,6 +18,7 @@ import domeImage from './images/gradient.jpeg';
 import { Updater } from './core/Updater';
 import { EventBus } from './core/EventBus';
 import { getEasing } from './core/easing';
+import { PaletteCoordinator } from './core/PaletteCoordinator';
 
 class IridescentVisionApp {
   constructor() {
@@ -103,6 +104,21 @@ class IridescentVisionApp {
     this.prayerBeads = new PrayerBeads(this.scene);
     this.prayerBeads.enable();
     this.prayerBeads.setIntensity(0);
+
+    this.palette = new PaletteCoordinator(this.palettes.awakening);
+    this.palette.register(this.background);
+    this.palette.register(this.cosmicDome);
+    this.palette.register(this.prayerBeads);
+    this.palette.register({
+      setPalette: ({ glow, gold }) => {
+        if (glow && this.maskMaterial && this.maskMaterial.userData.setRimColor) {
+          this.maskMaterial.userData.setRimColor(glow);
+        }
+        if (gold && this.ornamentUniforms) {
+          this.ornamentUniforms.uOrnamentColor.value.copy(gold);
+        }
+      },
+    });
     this.setBackgroundPalette('awakening');
 
     this.initSound();
@@ -401,6 +417,7 @@ class IridescentVisionApp {
     mesh.material = material;
     this.maskMaterial = material;
     this.attachOrnamentShell(mesh);
+    if (this.palette) this.palette.broadcast();
   }
 
   attachOrnamentShell(mesh) {
@@ -530,54 +547,14 @@ class IridescentVisionApp {
 
   setBackgroundPalette(name) {
     const palette = this.palettes[name];
-    if (!palette) return;
-    if (this.background && this.background.setPalette) {
-      this.background.setPalette(palette);
-    }
-    if (this.cosmicDome) {
-      this.cosmicDome.setPalette({ base: palette.base, glow: palette.glow });
-    }
-    if (this.maskMaterial && this.maskMaterial.userData.setRimColor) {
-      this.maskMaterial.userData.setRimColor(palette.glow);
-    }
+    if (!palette || !this.palette) return;
+    this.palette.setPalette(palette);
   }
 
   tweenBackgroundPalette(name, duration = 1500, easingName = 'easeInOutCubic') {
     const target = this.palettes[name];
-    if (!target || !this.background) return;
-    const ease = getEasing(easingName);
-    const fromBase = this.background.uniforms.uBaseColor.value.clone();
-    const fromTip = this.background.uniforms.uTipColor.value.clone();
-    const fromGlow = this.background.uniforms.uGlowColor.value.clone();
-    const toBase = new THREE.Color(target.base);
-    const toTip = new THREE.Color(target.tip);
-    const toGlow = new THREE.Color(target.glow);
-    const start = performance.now();
-    const tick = () => {
-      if (!this.background) return;
-      const elapsed = performance.now() - start;
-      const t = Math.min(elapsed / duration, 1);
-      const eased = ease(t);
-      const base = fromBase.clone().lerp(toBase, eased);
-      const tip = fromTip.clone().lerp(toTip, eased);
-      const glow = fromGlow.clone().lerp(toGlow, eased);
-      this.background.setPalette({
-        base: '#' + base.getHexString(),
-        tip: '#' + tip.getHexString(),
-        glow: '#' + glow.getHexString(),
-      });
-      if (this.cosmicDome) {
-        this.cosmicDome.setPalette({
-          base: '#' + base.getHexString(),
-          glow: '#' + glow.getHexString(),
-        });
-      }
-      if (this.maskMaterial && this.maskMaterial.userData.setRimColor) {
-        this.maskMaterial.userData.setRimColor(glow);
-      }
-      if (t < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
+    if (!target || !this.palette) return;
+    this.palette.tweenPalette(target, duration, easingName);
   }
 
   tweenOrnament(targets, durationMs = 1500, easingName = 'easeInOutCubic') {

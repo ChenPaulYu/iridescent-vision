@@ -474,9 +474,14 @@ class CosmicDome {
     this.group.visible = false;
   }
 
-  setPalette({ base, glow }) {
+  setPalette({ base, tip, glow, gold } = {}) {
     if (base !== undefined) this.uniforms.uBaseColor.value.set(base);
     if (glow !== undefined) this.uniforms.uGlowColor.value.set(glow);
+    if (gold !== undefined) {
+      this.yantraUniforms.uGoldColor.value.set(gold);
+      this.astrolabeUniforms.uGoldColor.value.set(gold);
+      this.mantraUniforms.uGoldColor.value.set(gold);
+    }
   }
 
   setIntensity(target, durationMs = 0) {
