@@ -219,15 +219,30 @@ var SoftVolume = function(scene, mesh, isGltf, soundHandler) {
         var textureLoader = new THREE.TextureLoader();
         var texture = textureLoader.load(pattern);
 
+        // let MeshMaterial = new THREE.MeshPhongMaterial( {
+        //     // color: 0x624eba,
+        //     color: 0xddbf72,
+        //     // emissive: 0xc325e,
+        //     emissive: 0x66561f,
+        //     // specular: 0x441833,
+        //     specular: 0x211f23,
+        //     map: texture,
+        //     side: THREE.DoubleSide,
+        //     alphaTest: 0.7,
+        //     shininess: 0
+            
+        // } );
         let MeshMaterial = new THREE.MeshPhongMaterial( {
-            color: 0x624eba,
-            emissive: 0xc325e,
-            specular: 0x441833,
+            // color: 0x624eba,
+            color: 0x47443b,
+            // emissive: 0xc325e,
+            emissive: 0x7f703b,
+            // specular: 0x441833,
             map: texture,
             side: THREE.DoubleSide,
             alphaTest: 0.7,
-            shininess: 30
-            
+            shininess: 0
+
         } );
         
         oriMaterial = this.mesh.material;

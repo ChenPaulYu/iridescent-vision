@@ -37,6 +37,7 @@ class IridescentVisionApp {
 
     this.soundHandler = null;
     this.textLayer = null;
+    this.maskMaterial = null;
 
     this.manager = new THREE.LoadingManager();
     this.managerLoad = 0;
@@ -50,6 +51,13 @@ class IridescentVisionApp {
     this.lastTime = 0;
     this.canvas = null;
     this.isStarted = false;
+    this.palettes = {
+      awakening: { base: '#11081a', tip: '#6044ff', glow: '#d5b4ff' },
+      transition: { base: '#2a1240', tip: '#e070ff', glow: '#ffe8ff' },
+      ascension: { base: '#1a1326', tip: '#ff6ac1', glow: '#ffd0ff' },
+      orbit: { base: '#090a1c', tip: '#6ef1ff', glow: '#b2fff7' },
+      reflection: { base: '#140616', tip: '#9d60ff', glow: '#f4c2ff' },
+    };
 
     this.animate = this.animate.bind(this);
     this.updateScene = this.updateScene.bind(this);
@@ -83,6 +91,7 @@ class IridescentVisionApp {
     this.controls.enable = true;
 
     this.background = new FiberForestBackground(this.renderer, this.scene);
+    this.setBackgroundPalette('awakening');
 
     this.initSound();
     this.textLayer = new TextLayer(() => this.handleStart());
@@ -102,18 +111,18 @@ class IridescentVisionApp {
     this.soundHandler.schedule(() => {
       this.soundHandler.playBG();
       if (this.softVolume) this.softVolume.enable();
-      if (this.background) this.background.enable();
+      if (this.background && !this.background.enabled) this.background.enable();
       soft2Gravity();
     }, 0, 0);
 
     const soft2Gravity = () => {
       this.soundHandler.scheduleToneTime(() => {
-        let count = 0;
-        const interval = setInterval(() => {
-          this.flash();
-          count += 1;
-          if (count > 10) clearInterval(interval);
-        }, 100);
+        this.tweenBackgroundPalette('transition', 2000);
+        this.cinematicBuildup(2000);
+      }, 27.5);
+
+      this.soundHandler.scheduleToneTime(() => {
+        this.cinematicFlash(900);
 
         if (this.softVolume) {
           this.softVolume.disable();
@@ -163,6 +172,7 @@ class IridescentVisionApp {
         if (this.background) {
           this.background.speedup = true;
         }
+        this.setBackgroundPalette('ascension');
       }, 1, 4);
       gravity2Glass();
     };
@@ -174,6 +184,7 @@ class IridescentVisionApp {
         this.testTransparent(2300);
         this.headmove = new HeadMove(this.renderer, this.camera, this.scene, this.face, this.mesh, this.controls);
         this.headmove.enable(this.camera, this.face, this.mesh);
+        this.setBackgroundPalette('orbit');
       }, 1, 5.5);
       shakeHead();
     };
@@ -246,6 +257,7 @@ class IridescentVisionApp {
     const afterFlake = () => {
       this.soundHandler.schedule(() => {
         if (this.headmove) this.headmove.changeMode('flake', this.camera, this.face, this.mesh);
+        this.setBackgroundPalette('reflection');
       }, 3, 44);
       enableActivity();
     };
@@ -288,6 +300,7 @@ class IridescentVisionApp {
           child.geometry.computeVertexNormals();
           this.mesh = child;
           this.mesh.name = 'mask';
+          this.applyMaskMaterial(this.mesh);
           this.scene.add(this.mesh);
           this.initMode();
         }
@@ -310,6 +323,133 @@ class IridescentVisionApp {
     this.softVolume = new SoftVolume(this.scene, this.mesh, true, this.soundHandler);
   }
 
+  applyMaskMaterial(mesh) {
+    const material = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#2a1031'),
+      metalness: 0.2,
+      roughness: 0.25,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.15,
+      transmission: 0.12,
+      thickness: 0.85,
+      sheen: 1.0,
+      sheenRoughness: 0.6,
+      transparent: true,
+      opacity: 0.95,
+    });
+    const rimColor = new THREE.Color('#d8b5ff');
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uRimColor = { value: rimColor.clone() };
+      shader.uniforms.uRimStrength = { value: 0.7 };
+      shader.uniforms.uRimExponent = { value: 2.3 };
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'vec4 diffuseColor = vec4( diffuse, opacity );',
+        `float rimDot = clamp(dot(normalize(vNormal), normalize(-vViewPosition)), 0.0, 1.0);
+         float rim = pow(1.0 - rimDot, uRimExponent);
+         vec3 rimCol = uRimColor * rim * uRimStrength;
+         vec4 diffuseColor = vec4(diffuse + rimCol, opacity);`
+      );
+      material.userData.shader = shader;
+    };
+    material.userData.setRimColor = (color) => {
+      const shader = material.userData.shader;
+      if (!shader) return;
+      shader.uniforms.uRimColor.value.set(color);
+    };
+    mesh.material = material;
+    this.maskMaterial = material;
+  }
+
+  setBackgroundPalette(name) {
+    const palette = this.palettes[name];
+    if (!palette) return;
+    if (this.background && this.background.setPalette) {
+      this.background.setPalette(palette);
+    }
+    if (this.maskMaterial && this.maskMaterial.userData.setRimColor) {
+      this.maskMaterial.userData.setRimColor(palette.glow);
+    }
+  }
+
+  tweenBackgroundPalette(name, duration = 1500) {
+    const target = this.palettes[name];
+    if (!target || !this.background) return;
+    const fromBase = this.background.uniforms.uBaseColor.value.clone();
+    const fromTip = this.background.uniforms.uTipColor.value.clone();
+    const fromGlow = this.background.uniforms.uGlowColor.value.clone();
+    const toBase = new THREE.Color(target.base);
+    const toTip = new THREE.Color(target.tip);
+    const toGlow = new THREE.Color(target.glow);
+    const start = performance.now();
+    const tick = () => {
+      if (!this.background) return;
+      const elapsed = performance.now() - start;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const base = fromBase.clone().lerp(toBase, eased);
+      const tip = fromTip.clone().lerp(toTip, eased);
+      const glow = fromGlow.clone().lerp(toGlow, eased);
+      this.background.setPalette({
+        base: '#' + base.getHexString(),
+        tip: '#' + tip.getHexString(),
+        glow: '#' + glow.getHexString(),
+      });
+      if (this.maskMaterial && this.maskMaterial.userData.setRimColor) {
+        this.maskMaterial.userData.setRimColor(glow);
+      }
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  cinematicBuildup(duration = 2000) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(220, 180, 255, 0.55) 0%, rgba(140, 90, 200, 0.22) 45%, transparent 80%);
+      pointer-events: none;
+      z-index: 9998;
+      opacity: 0;
+      transition: opacity ${duration}ms cubic-bezier(0.4, 0, 0.2, 1);
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+      });
+    });
+    setTimeout(() => {
+      overlay.style.transition = `opacity 700ms ease-out`;
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, 800);
+    }, duration + 100);
+  }
+
+  cinematicFlash(duration = 900) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: #f0e8ff;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 1;
+      transition: opacity ${duration}ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        overlay.style.opacity = '0';
+      });
+    });
+    setTimeout(() => {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, duration + 200);
+  }
+
   updateScene(delta = 0) {
     if (!this.renderer || !this.camera || !this.isStarted) return;
     if (this.softVolume) this.softVolume.update(this.camera);
@@ -317,6 +457,11 @@ class IridescentVisionApp {
     if (this.mouseLight) this.mouseLight.update(this.mesh);
     if (this.background) {
       this.background.update(delta, this.camera, this.mesh, this.face);
+      if (this.background.direction === 'up' && this.background.speedupAmount > 0.5) {
+        const lift = delta * this.background.speedupAmount * 4.5;
+        if (this.mesh) this.mesh.position.y += lift;
+        if (this.face) this.face.position.y += lift;
+      }
     }
     if (this.gravity && this.face) {
       const offset = this.face.position.clone().add(new THREE.Vector3(-2, 0, 23));

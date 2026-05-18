@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 
-const vertexShader = /* glsl */`
+// Instanced fiber shaders ----------------------------------------------------
+const fiberVertexShader = /* glsl */`
   uniform float uTime;
   uniform float uScroll;
   uniform float uLength;
   uniform float uDepthRange;
   uniform float uCurveStrength;
+  uniform float uWavePhase;
+  uniform float uWaveAmp;
+  uniform float uVerticalScroll;
+  uniform float uVerticalWrap;
   attribute float progress;
   attribute vec3 instOffset;
   attribute vec3 instSeed;
@@ -31,12 +36,17 @@ const vertexShader = /* glsl */`
     displaced.x = instOffset.x + sin(t * 5.0 + instSeed.x) * radial + wave * 0.6;
     displaced.z = instOffset.y + cos(t * 6.0 + instSeed.y) * radial * 0.35;
 
-    float height = -uLength * 0.5 + t * uLength + instOffset.z;
+    float yShift = mod(-uVerticalScroll + uVerticalWrap * 0.5, uVerticalWrap) - uVerticalWrap * 0.5;
+    float height = -uLength * 0.5 + t * uLength + instOffset.z + yShift;
     displaced.y = height;
 
     float depthShift = instDepth + uScroll - t * uDepthRange * 0.35;
     depthShift = mod(depthShift + uDepthRange, uDepthRange) - uDepthRange * 0.5;
     displaced.z += depthShift;
+
+    float waveOffset = sin(uWavePhase + instSeed.x + t * 5.0) * uWaveAmp * (1.0 - t * 0.3);
+    displaced.x += waveOffset;
+    displaced.z += cos(uWavePhase * 0.6 + instSeed.y + t * 4.0) * uWaveAmp * 0.4 * (1.0 - t);
 
     float side = instOffset.x >= 0.0 ? 1.0 : -1.0;
     float curveEnvelope = smoothstep(0.05, 0.45, t) * (1.0 - smoothstep(0.55, 0.95, t));
@@ -58,7 +68,7 @@ const vertexShader = /* glsl */`
   }
 `;
 
-const fragmentShader = /* glsl */`
+const fiberFragmentShader = /* glsl */`
   uniform vec3 uBaseColor;
   uniform vec3 uTipColor;
   uniform vec3 uGlowColor;
@@ -74,21 +84,125 @@ const fragmentShader = /* glsl */`
   }
 `;
 
+// Shadertoy-inspired tunnel shaders -----------------------------------------
+const tunnelVertexShader = /* glsl */`
+  uniform float uRadius;
+  varying vec2 vUv;
+  varying float vRadial;
+
+  void main() {
+    vUv = uv;
+    vec3 pos = position;
+    vRadial = clamp(length(pos.xz) / uRadius, 0.0, 1.0);
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const tunnelFragmentShader = /* glsl */`
+  uniform float uTime;
+  uniform vec3 uBaseColor;
+  uniform vec3 uTipColor;
+  uniform vec3 uGlowColor;
+  uniform float uVerticalScroll;
+  varying vec2 vUv;
+  varying float vRadial;
+
+  float fbm(vec2 p) {
+    float a = 0.5;
+    float f = 0.0;
+    for (int i = 0; i < 4; i++) {
+      f += a * sin(p.x) * cos(p.y);
+      p *= 1.8;
+      a *= 0.5;
+    }
+    return f;
+  }
+
+  void main() {
+    vec2 uv = vUv;
+    uv.y = fract(uv.y - uVerticalScroll * 0.012);
+    float time = uTime * 0.35;
+    float swirl = sin(uv.y * 8.0 - time * 3.5);
+    float noise = fbm(vec2(uv.x * 10.0 + swirl * 0.5, uv.y * 6.0 + time * 1.2));
+    float flow = uv.x + swirl * 0.15 + noise * 0.06 + time * 0.1;
+    float ridges = abs(sin(flow * 46.0));
+    float fiber = pow(1.0 - ridges, 4.5);
+
+    float depthFade = smoothstep(0.05, 0.35, uv.y) * (1.0 - uv.y);
+    float edge = smoothstep(0.45, 1.0, vRadial);
+    float alpha = fiber * edge * depthFade;
+    if (alpha < 0.01) discard;
+
+    vec3 base = mix(uBaseColor, uTipColor, pow(uv.y, 0.45));
+    vec3 color = base + uGlowColor * fiber * edge * 1.2;
+    color *= mix(0.4, 1.2, edge);
+
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+const sparkVertexShader = /* glsl */`
+  uniform float uTime;
+  uniform float uVerticalScroll;
+  uniform float uSparkleWrap;
+  attribute vec3 aSeed;
+  varying float vStrength;
+
+  void main() {
+    vec3 pos = position;
+    pos.x += sin(uTime * 0.4 + aSeed.x) * 0.8;
+    pos.z += cos(uTime * 0.5 + aSeed.y) * 0.8;
+    pos.y += sin(uTime * 0.35 + aSeed.z) * 10.0;
+    pos.y = mod(pos.y - uVerticalScroll + uSparkleWrap * 0.5, uSparkleWrap) - uSparkleWrap * 0.5;
+
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    float size = 6.0 + sin(uTime * 0.6 + aSeed.x) * 4.0;
+    gl_PointSize = size * (280.0 / -mvPosition.z);
+    vStrength = 0.5 + 0.5 * sin(uTime * 0.8 + aSeed.y);
+  }
+`;
+
+const sparkFragmentShader = /* glsl */`
+  uniform vec3 uGlowColor;
+  varying float vStrength;
+
+  void main() {
+    vec2 coord = gl_PointCoord - 0.5;
+    float dist = length(coord);
+    float alpha = smoothstep(0.4, 0.0, dist);
+    vec3 color = uGlowColor * (0.4 + vStrength * 0.6);
+    gl_FragColor = vec4(color, alpha * 0.35 * vStrength);
+    if (gl_FragColor.a < 0.01) discard;
+  }
+`;
+
 class FiberForestBackground {
   constructor(renderer, scene, options = {}) {
     this.renderer = renderer;
     this.scene = scene;
     this.options = Object.assign(
       {
-        fiberCount: 420,
+        fiberCount: 900,
         length: 140,
-        innerRadius: 7,
-        radiusSpread: 18,
+        innerRadius: 5,
+        radiusSpread: 22,
+        nearBandRatio: 0.2,
         depthRange: 160,
         heightVariance: 60,
         scrollSpeed: 18,
         timeScale: 0.45,
         curveStrength: 3.5,
+        tunnelRadius: 26,
+        tunnelHeight: 200,
+        tunnelSegments: 96,
+        verticalSpeed: 8,
+        verticalWrap: 600,
+        speedupMax: 20,
+        speedupRate: 14,
+        speedupDecay: 6,
+        speedupTimeBoost: 2.0,
       },
       options
     );
@@ -97,6 +211,8 @@ class FiberForestBackground {
     this.speedup = false;
     this.direction = 'forward';
     this.scroll = 0;
+    this.verticalScroll = 0;
+    this.speedupAmount = 0;
 
     this.uniforms = {
       uTime: { value: 0 },
@@ -107,15 +223,35 @@ class FiberForestBackground {
       uTipColor: { value: new THREE.Color(0x6b4bff) },
       uGlowColor: { value: new THREE.Color(0xb7a4ff) },
       uCurveStrength: { value: this.options.curveStrength },
+      uWavePhase: { value: 0 },
+      uWaveAmp: { value: 0.8 },
+      uVerticalScroll: { value: 0 },
+      uVerticalWrap: { value: this.options.verticalWrap },
+    };
+
+    this.tunnelUniforms = {
+      uTime: this.uniforms.uTime,
+      uBaseColor: this.uniforms.uBaseColor,
+      uTipColor: this.uniforms.uTipColor,
+      uGlowColor: this.uniforms.uGlowColor,
+      uVerticalScroll: this.uniforms.uVerticalScroll,
+      uRadius: { value: this.options.tunnelRadius },
+    };
+
+    this.sparkUniforms = {
+      uTime: this.uniforms.uTime,
+      uGlowColor: this.uniforms.uGlowColor,
+      uVerticalScroll: this.uniforms.uVerticalScroll,
+      uSparkleWrap: { value: this.options.tunnelHeight },
     };
 
     this.previousFog = scene.fog || null;
 
-    this.geometry = this.createGeometry();
+    this.geometry = this.createFiberGeometry();
     this.material = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
-      vertexShader,
-      fragmentShader,
+      vertexShader: fiberVertexShader,
+      fragmentShader: fiberFragmentShader,
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
@@ -124,16 +260,33 @@ class FiberForestBackground {
 
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false;
+
+    this.tunnel = this.createTunnel();
+    this.sparkles = this.createSparkles();
+
     this.group = new THREE.Group();
     this.group.visible = false;
+    this.tunnel.renderOrder = -10;
+    this.mesh.renderOrder = 0;
+    this.sparkles.renderOrder = 5;
+    this.group.add(this.tunnel);
     this.group.add(this.mesh);
+    this.group.add(this.sparkles);
   }
 
-  createGeometry() {
+  createFiberGeometry() {
     const segments = 80;
-    const plane = new THREE.PlaneBufferGeometry(1, this.options.length, 1, segments);
-    const progress = new Float32Array(plane.attributes.position.count);
-    const positions = plane.attributes.position.array;
+    const plane = new THREE.PlaneBufferGeometry(1.8, this.options.length, 6, segments);
+    const posAttr = plane.attributes.position;
+    for (let i = 0; i < posAttr.count; i++) {
+      const yNorm = (posAttr.getY(i) / this.options.length) * 2.0;
+      const flare = 0.65 * (1.0 - Math.pow(Math.abs(yNorm), 1.5));
+      const base = 0.25 + flare;
+      posAttr.setX(i, posAttr.getX(i) * base);
+    }
+    posAttr.needsUpdate = true;
+    const progress = new Float32Array(posAttr.count);
+    const positions = posAttr.array;
     for (let i = 0; i < plane.attributes.position.count; i++) {
       const y = positions[i * 3 + 1];
       const t = Math.max(0, Math.min(1, (y + this.options.length / 2) / this.options.length));
@@ -156,18 +309,22 @@ class FiberForestBackground {
 
     for (let i = 0; i < fiberCount; i++) {
       const i3 = i * 3;
-      const theta = Math.random() * Math.PI * 2;
-      const radius = this.options.innerRadius + Math.pow(Math.random(), 0.55) * this.options.radiusSpread;
-      const x = Math.cos(theta) * radius;
-      const z = Math.sin(theta) * radius * 0.8;
+      const vertical = Math.random() * 2 - 1;
+      const upper = vertical >= 0.0 ? 1 : -1;
+      const flare = Math.pow(Math.abs(vertical), 0.55);
+      const outer = this.options.innerRadius + this.options.radiusSpread * (0.9 + 0.2 * Math.random());
+      const inner = this.options.innerRadius * (0.45 + 0.2 * Math.random());
+      const radius = inner + (1.0 - flare) * (outer - inner);
+      const x = (radius + 0.5 * Math.sin(vertical * 2.4)) * upper;
+      const z = vertical * this.options.radiusSpread * 0.85 + (Math.random() - 0.5);
 
       offsets[i3] = x;
       offsets[i3 + 1] = z;
       offsets[i3 + 2] = Math.random() * this.options.heightVariance - this.options.heightVariance * 0.5;
 
-      seeds[i3] = 0.8 + Math.random() * 1.8; // swirl strength
-      seeds[i3 + 1] = Math.random() * 2.0 + 0.5; // sway speed
-      seeds[i3 + 2] = Math.random() * 0.8 + 0.2; // ripple amount
+      seeds[i3] = 0.8 + Math.random() * 1.8;
+      seeds[i3 + 1] = Math.random() * 2.0 + 0.5;
+      seeds[i3 + 2] = Math.random() * 0.8 + 0.2;
 
       widths[i] = Math.random() * 0.18 + 0.04;
       depths[i] = Math.random() * this.options.depthRange;
@@ -181,13 +338,73 @@ class FiberForestBackground {
     return geometry;
   }
 
+  createTunnel() {
+    const geom = new THREE.CylinderGeometry(
+      this.options.tunnelRadius,
+      this.options.tunnelRadius,
+      this.options.tunnelHeight,
+      this.options.tunnelSegments,
+      64,
+      true
+    );
+    geom.rotateX(Math.PI / 2);
+    const material = new THREE.ShaderMaterial({
+      uniforms: this.tunnelUniforms,
+      vertexShader: tunnelVertexShader,
+      fragmentShader: tunnelFragmentShader,
+      transparent: true,
+      side: THREE.BackSide,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geom, material);
+    mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  createSparkles() {
+    const count = 1200;
+    const positions = new Float32Array(count * 3);
+    const seeds = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      const theta = Math.random() * Math.PI * 2;
+      const radius = this.options.tunnelRadius * (0.75 + Math.random() * 0.4);
+      positions[i3] = Math.cos(theta) * radius;
+      positions[i3 + 1] = (Math.random() - 0.5) * this.options.tunnelHeight;
+      positions[i3 + 2] = Math.sin(theta) * radius;
+      seeds[i3] = Math.random() * Math.PI * 2;
+      seeds[i3 + 1] = Math.random() * Math.PI * 2;
+      seeds[i3 + 2] = Math.random() * Math.PI * 2;
+    }
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 3));
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: this.sparkUniforms,
+      vertexShader: sparkVertexShader,
+      fragmentShader: sparkFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const points = new THREE.Points(geom, mat);
+    points.frustumCulled = false;
+    return points;
+  }
+
   enable() {
     this.enabled = true;
+    this.verticalScroll = 0;
+    this.speedupAmount = 0;
+    this.uniforms.uVerticalScroll.value = 0;
     if (this.group.parent !== this.scene) {
       this.scene.add(this.group);
     }
     this.group.visible = true;
-    this.scene.fog = new THREE.Fog(0x110816, 15, this.options.length * 1.8);
+    this.scene.fog = new THREE.Fog(this.uniforms.uBaseColor.value.getHex(), 12, this.options.length * 1.6);
     this.renderer.setClearColor(this.uniforms.uBaseColor.value);
   }
 
@@ -202,19 +419,49 @@ class FiberForestBackground {
     this.renderer.setClearColor(targetColor);
   }
 
+  setPalette({ base, tip, glow }) {
+    if (base) this.uniforms.uBaseColor.value.set(base);
+    if (tip) this.uniforms.uTipColor.value.set(tip);
+    if (glow) this.uniforms.uGlowColor.value.set(glow);
+  }
+
   update(delta = 0) {
     if (!this.enabled) return;
-    const speedMultiplier = this.speedup ? 2.5 : 1;
-    this.uniforms.uTime.value += delta * this.options.timeScale * (0.6 + speedMultiplier * 0.4);
-    const wrap = this.options.depthRange;
-    this.scroll = (this.scroll + delta * this.options.scrollSpeed * speedMultiplier) % wrap;
+
+    if (this.speedup) {
+      this.speedupAmount = Math.min(
+        this.speedupAmount + delta * this.options.speedupRate,
+        this.options.speedupMax
+      );
+    } else {
+      this.speedupAmount = Math.max(this.speedupAmount - delta * this.options.speedupDecay, 0);
+    }
+    const speedMultiplier = 1 + this.speedupAmount;
+
+    this.uniforms.uTime.value += delta * this.options.timeScale * (0.6 + speedMultiplier * 0.4 * this.options.speedupTimeBoost);
+    this.uniforms.uWavePhase.value += delta * 1.5;
+    this.scroll = (this.scroll + delta * this.options.scrollSpeed * speedMultiplier) % this.options.depthRange;
     this.uniforms.uScroll.value = this.scroll;
+    this.uniforms.uCurveStrength.value = this.options.curveStrength * (0.85 + Math.sin(this.uniforms.uTime.value * 0.7) * 0.2);
+
+    let verticalDir = 0;
+    if (this.direction === 'up') verticalDir = 1;
+    else if (this.direction === 'down') verticalDir = -1;
+    if (verticalDir !== 0) {
+      const driftFactor = 0.15 + this.speedupAmount * 1.1;
+      this.verticalScroll += delta * this.options.verticalSpeed * driftFactor * verticalDir;
+      this.uniforms.uVerticalScroll.value = this.verticalScroll;
+    }
   }
 
   dispose() {
     this.disable();
     this.geometry.dispose();
     this.material.dispose();
+    this.tunnel.geometry.dispose();
+    this.tunnel.material.dispose();
+    this.sparkles.geometry.dispose();
+    this.sparkles.material.dispose();
   }
 }
 
