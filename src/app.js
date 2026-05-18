@@ -351,18 +351,19 @@ class IridescentVisionApp {
 
     loader.load(maskPath, (gltf) => {
       const model = gltf.scene;
+      let processed = false;
       model.traverse((child) => {
-        if (child.isMesh) {
-          child.geometry.rotateY(2 * Math.PI);
-          child.geometry.scale(0.15, 0.15, 0.15);
-          child.geometry.translate(0, -5, 7);
-          child.geometry.computeVertexNormals();
-          this.mesh = child;
-          this.mesh.name = 'mask';
-          this.applyMaskMaterial(this.mesh);
-          this.scene.add(this.mesh);
-          this.initMode();
-        }
+        if (processed || !child.isMesh) return;
+        processed = true;
+        child.geometry.rotateY(2 * Math.PI);
+        child.geometry.scale(0.15, 0.15, 0.15);
+        child.geometry.translate(0, -5, 7);
+        child.geometry.computeVertexNormals();
+        this.mesh = child;
+        this.mesh.name = 'mask';
+        this.applyMaskMaterial(this.mesh);
+        this.scene.add(this.mesh);
+        this.initMode();
       });
     });
 
