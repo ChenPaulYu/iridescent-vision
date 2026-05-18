@@ -7,6 +7,7 @@ import { MouseLight } from './MouseLight';
 import { GlassSkin } from './GlassSkin';
 import { SoftVolume } from './SoftVolume';
 import { FiberForestBackground } from './FiberForestBackground';
+import { BranchingRoots } from './BranchingRoots';
 import { CosmicDome } from './CosmicDome';
 import { PrayerBeads } from './PrayerBeads';
 import { HeadMove } from './HeadMove';
@@ -35,6 +36,7 @@ class IridescentVisionApp {
     this.glassSkin = null;
     this.softVolume = null;
     this.background = null;
+    this.branchingRoots = null;
     this.cosmicDome = null;
     this.prayerBeads = null;
     this.goldFlakeState = { active: false, rate: 0, timer: 0 };
@@ -98,6 +100,9 @@ class IridescentVisionApp {
     this.controls.enable = true;
 
     this.background = new FiberForestBackground(this.renderer, this.scene);
+    this.branchingRoots = new BranchingRoots(this.scene);
+    this.branchingRoots.enable();
+    this.branchingRoots.setIntensity(0);
     this.cosmicDome = new CosmicDome(this.renderer, this.scene);
     this.cosmicDome.enable();
     this.cosmicDome.setIntensity(0.25);
@@ -108,6 +113,7 @@ class IridescentVisionApp {
 
     this.palette = new PaletteCoordinator(this.palettes.awakening);
     this.palette.register(this.background);
+    this.palette.register(this.branchingRoots);
     this.palette.register(this.cosmicDome);
     this.palette.register(this.prayerBeads);
     this.palette.register({
@@ -141,7 +147,12 @@ class IridescentVisionApp {
     this.soundHandler.schedule(() => {
       this.soundHandler.playBG();
       if (this.softVolume) this.softVolume.enable();
-      if (this.background && !this.background.enabled) this.background.enable();
+      if (this.background && !this.background.enabled) {
+        this.background.enable();
+        this.background.setForestIntensity(0);
+        this.background.setMode(1.0);
+      }
+      if (this.branchingRoots) this.branchingRoots.setIntensity(0.95, 2000);
       soft2Gravity();
     }, 0, 0);
 
@@ -167,9 +178,9 @@ class IridescentVisionApp {
         if (this.gravity) this.gravity.enable();
         if (this.background) {
           this.background.direction = 'up';
-          this.background.setForestIntensity(0.18, 3500);
-          this.background.setMode(1.0, 2500);
+          this.background.setForestIntensity(0.5, 2500);
         }
+        if (this.branchingRoots) this.branchingRoots.setIntensity(0, 2500);
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(0.55, 4000);
           this.cosmicDome.setTapestryIntensity(0.9, 3000);
@@ -727,6 +738,7 @@ class IridescentVisionApp {
       }
     }
     if (this.cosmicDome) this.cosmicDome.update(delta);
+    if (this.branchingRoots) this.branchingRoots.update(delta);
     if (this.ornamentUniforms) {
       this.ornamentUniforms.uTime.value += delta;
       if (this.ornamentMesh) {
@@ -997,6 +1009,7 @@ class IridescentVisionApp {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    if (this.branchingRoots) this.branchingRoots.onWindowResize(w, h);
   }
 
   disableZoom() {
