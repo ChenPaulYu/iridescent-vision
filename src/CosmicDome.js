@@ -257,6 +257,10 @@ class CosmicDome {
     this.targetMantraIntensity = 0;
     this.mantraIntensityRate = 0;
 
+    this.resonanceMode = 'idle';
+    this.rotationOffset = 0;
+    this.shakePhase = 0;
+
     this.uniforms = {
       uTime: { value: 0 },
       uIntensity: { value: 0 },
@@ -460,6 +464,10 @@ class CosmicDome {
     }
   }
 
+  resonateWith(mode) {
+    this.resonanceMode = mode || 'idle';
+  }
+
   setMantraIntensity(target, durationMs = 0) {
     const clamped = Math.max(0, Math.min(1, target));
     this.targetMantraIntensity = clamped;
@@ -493,6 +501,23 @@ class CosmicDome {
   update(delta = 0) {
     if (!this.enabled) return;
     this.uniforms.uTime.value += delta;
+
+    if (this.resonanceMode === 'shake') {
+      this.shakePhase += delta * 1.7;
+      this.group.rotation.z = Math.sin(this.shakePhase) * 0.05;
+      this.group.rotation.x = Math.cos(this.shakePhase * 0.78) * 0.03;
+    } else if (this.resonanceMode === 'rotate') {
+      this.rotationOffset += delta * 0.12;
+      this.group.rotation.z = this.rotationOffset;
+      this.group.rotation.x *= 0.94;
+    } else if (this.resonanceMode === 'flake') {
+      this.shakePhase += delta * 0.5;
+      this.group.rotation.z = Math.sin(this.shakePhase) * 0.015;
+      this.group.rotation.x *= 0.94;
+    } else {
+      this.group.rotation.z *= 0.94;
+      this.group.rotation.x *= 0.94;
+    }
 
     if (this.intensityTransitionRate > 0) {
       const step = delta * this.intensityTransitionRate;

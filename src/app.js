@@ -224,21 +224,21 @@ class IridescentVisionApp {
         this.bgTexture = loader.load(domeImage);
         this.scene.background = this.bgTexture;
 
-        if (this.headmove) this.headmove.changeMode('shake', this.camera, this.face, this.mesh);
+        this.setHeadmoveMode('shake');
       }, 1, 38.4);
       headFlake();
     };
 
     const headFlake = () => {
       this.soundHandler.schedule(() => {
-        if (this.headmove) this.headmove.changeMode('flake', this.camera, this.face, this.mesh);
+        this.setHeadmoveMode('flake');
       }, 1, 53.5);
       headUp();
     };
 
     const headUp = () => {
       this.soundHandler.schedule(() => {
-        if (this.headmove) this.headmove.changeMode('up', this.camera, this.face, this.mesh);
+        this.setHeadmoveMode('up');
       }, 2, 2);
       rotateHead();
       shakeHead2();
@@ -253,14 +253,14 @@ class IridescentVisionApp {
           count += 1;
           if (count > 2) clearInterval(interval);
         }, 800);
-        if (this.headmove) this.headmove.changeMode('shake', this.camera, this.face, this.mesh);
+        this.setHeadmoveMode('shake');
       }, 2, 7);
       finalHeadUp();
     };
 
     const rotateHead = () => {
       this.soundHandler.schedule(() => {
-        if (this.headmove) this.headmove.changeMode('rotate', this.camera, this.face, this.mesh);
+        this.setHeadmoveMode('rotate');
       }, 4, 4);
     };
 
@@ -270,14 +270,14 @@ class IridescentVisionApp {
         const loader = new THREE.TextureLoader();
         this.bgTexture = loader.load(domeImage);
         this.scene.background = this.bgTexture;
-        if (this.headmove) this.headmove.changeMode('up', this.camera, this.face, this.mesh);
+        this.setHeadmoveMode('up');
       }, 3, 33);
       afterFlake();
     };
 
     const afterFlake = () => {
       this.soundHandler.schedule(() => {
-        if (this.headmove) this.headmove.changeMode('flake', this.camera, this.face, this.mesh);
+        this.setHeadmoveMode('flake');
         this.setBackgroundPalette('reflection');
       }, 3, 44);
       enableActivity();
@@ -430,6 +430,15 @@ class IridescentVisionApp {
       if (t < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
+  }
+
+  setHeadmoveMode(mode) {
+    if (this.headmove) {
+      this.headmove.changeMode(mode, this.camera, this.face, this.mesh);
+    }
+    if (this.cosmicDome) {
+      this.cosmicDome.resonateWith(mode);
+    }
   }
 
   cinematicBuildup(duration = 2000) {
