@@ -328,6 +328,10 @@ class IridescentVisionApp {
           this.headmove.disable();
           this.headmove = undefined;
         }
+        if (this.mesh) this.mesh.visible = false;
+        if (this.face) this.face.visible = false;
+        if (this.cosmicDome) this.cosmicDome.setIntensity(0.15, 3000);
+        if (this.prayerBeads) this.prayerBeads.setIntensity(0, 1500);
         this.activity = new Activity(this.camera, this.scene, this.controls);
         this.activity.enable();
       }, 2, 9);

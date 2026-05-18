@@ -47,12 +47,12 @@ var Activity = function (camera, scene, controls) {
     }
 
     let initButton = () => {
-        var geometry = new THREE.SphereGeometry(5, 32, 32);
+        var geometry = new THREE.SphereGeometry(8, 48, 48);
         var texture = new THREE.TextureLoader().load(linkImage);
         var material = new THREE.MeshBasicMaterial({ map: texture });
         button = new THREE.Mesh(geometry, material);
 
-        button.material.side = THREE.BackSide;
+        button.material.side = THREE.FrontSide;
         button.name = 'button'
     }
 
