@@ -468,6 +468,13 @@ class CosmicDome {
     this.resonanceMode = mode || 'idle';
   }
 
+  decompose(durationMs = 8000) {
+    this.setMantraIntensity(0, durationMs * 0.7);
+    this.collapseYantra(durationMs * 0.6);
+    this.setAstrolabeIntensity(0, durationMs);
+    this.setIntensity(0.45, durationMs * 1.2);
+  }
+
   setMantraIntensity(target, durationMs = 0) {
     const clamped = Math.max(0, Math.min(1, target));
     this.targetMantraIntensity = clamped;

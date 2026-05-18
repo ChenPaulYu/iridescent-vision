@@ -279,6 +279,7 @@ class IridescentVisionApp {
       this.soundHandler.schedule(() => {
         this.setHeadmoveMode('flake');
         this.setBackgroundPalette('reflection');
+        if (this.cosmicDome) this.cosmicDome.decompose(8000);
       }, 3, 44);
       enableActivity();
     };
@@ -780,3 +781,7 @@ class IridescentVisionApp {
 
 const app = new IridescentVisionApp();
 app.start();
+
+if (typeof window !== 'undefined') {
+  window.__app = app;
+}

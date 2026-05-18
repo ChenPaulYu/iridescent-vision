@@ -9,6 +9,9 @@ let SoundHandler = function(onProgress){
         if (params.has('mute') || params.has('silent')) {
             Tone.Master.mute = true;
         }
+        if (typeof window !== 'undefined') {
+            window.__Tone = Tone;
+        }
     } catch (e) { /* SSR or unusual env */ }
     var loaded = 0;
     var startTime;
