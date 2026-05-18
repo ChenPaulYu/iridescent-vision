@@ -4,6 +4,12 @@ import bgm from './sounds/bgm.mp3';
 let SoundHandler = function(onProgress){
     Tone.context.lookAhead = 0;
     this.onProgress = onProgress;
+    try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('mute') || params.has('silent')) {
+            Tone.Master.mute = true;
+        }
+    } catch (e) { /* SSR or unusual env */ }
     var loaded = 0;
     var startTime;
     //var players = [];

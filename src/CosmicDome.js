@@ -49,6 +49,65 @@ const yantraVertexShader = /* glsl */`
 
 const astrolabeVertexShader = yantraVertexShader;
 
+const mantraVertexShader = yantraVertexShader;
+
+const mantraFragmentShader = /* glsl */`
+  uniform float uTime;
+  uniform float uIntensity;
+  uniform vec3 uGoldColor;
+  varying vec2 vUv;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+      mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+      f.y
+    );
+  }
+
+  float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i = 0; i < 4; i++) {
+      v += a * vnoise(p);
+      p *= 2.0;
+      a *= 0.5;
+    }
+    return v;
+  }
+
+  void main() {
+    vec2 p = vUv * 5.5;
+    float drift = uTime * 0.045;
+    p += vec2(drift, sin(drift * 0.5) * 0.25);
+
+    // Domain warp — flowing calligraphic feel
+    vec2 q = vec2(fbm(p), fbm(p + vec2(5.2, 1.3)));
+    float n = fbm(p + q * 1.6);
+
+    // Threshold to extract narrow ridges that read as strokes
+    float thr = 0.5;
+    float band = smoothstep(thr - 0.03, thr, n) - smoothstep(thr, thr + 0.03, n);
+
+    // Center-bias so strokes fade at frame edges
+    vec2 centered = vUv - 0.5;
+    float radial = 1.0 - smoothstep(0.28, 0.48, length(centered));
+
+    float glow = band * radial * uIntensity;
+    vec3 col = uGoldColor * glow * 1.5;
+    float alpha = glow * 0.55;
+    if (alpha < 0.01) discard;
+    gl_FragColor = vec4(col, alpha);
+  }
+`;
+
 const astrolabeFragmentShader = /* glsl */`
   uniform float uTime;
   uniform float uIntensity;
@@ -169,6 +228,8 @@ class CosmicDome {
         yantraDistance: -22,
         astrolabeSize: 130,
         astrolabeDistance: -55,
+        mantraSize: 110,
+        mantraDistance: -38,
       },
       options
     );
@@ -192,6 +253,10 @@ class CosmicDome {
     this.targetAstrolabeSpeedup = 0;
     this.astrolabeSpeedupRate = 0;
 
+    this.mantraIntensity = 0;
+    this.targetMantraIntensity = 0;
+    this.mantraIntensityRate = 0;
+
     this.uniforms = {
       uTime: { value: 0 },
       uIntensity: { value: 0 },
@@ -214,15 +279,41 @@ class CosmicDome {
       uGoldColor: { value: new THREE.Color(this.options.goldColor) },
     };
 
+    this.mantraUniforms = {
+      uTime: this.uniforms.uTime,
+      uIntensity: { value: 0 },
+      uGoldColor: { value: new THREE.Color(this.options.goldColor) },
+    };
+
     this.dustPoints = this.createDustSystem();
     this.yantraMesh = this.createYantra();
     this.astrolabeMesh = this.createAstrolabe();
+    this.mantraMesh = this.createMantra();
     this.group = new THREE.Group();
     this.group.renderOrder = -20;
     this.group.add(this.dustPoints);
     this.group.add(this.astrolabeMesh);
+    this.group.add(this.mantraMesh);
     this.group.add(this.yantraMesh);
     this.group.visible = false;
+  }
+
+  createMantra() {
+    const geom = new THREE.PlaneGeometry(this.options.mantraSize, this.options.mantraSize);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: this.mantraUniforms,
+      vertexShader: mantraVertexShader,
+      fragmentShader: mantraFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(0, 0, this.options.mantraDistance);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = -16;
+    return mesh;
   }
 
   createAstrolabe() {
@@ -369,6 +460,18 @@ class CosmicDome {
     }
   }
 
+  setMantraIntensity(target, durationMs = 0) {
+    const clamped = Math.max(0, Math.min(1, target));
+    this.targetMantraIntensity = clamped;
+    if (durationMs <= 0) {
+      this.mantraIntensity = clamped;
+      this.mantraUniforms.uIntensity.value = clamped;
+      this.mantraIntensityRate = 0;
+    } else {
+      this.mantraIntensityRate = Math.abs(clamped - this.mantraIntensity) / (durationMs / 1000);
+    }
+  }
+
   pulseAstrolabe(peakSpeed = 1.0, riseMs = 600, fallMs = 900) {
     this.targetAstrolabeSpeedup = peakSpeed;
     this.astrolabeSpeedupRate = Math.abs(peakSpeed - this.astrolabeSpeedup) / (riseMs / 1000);
@@ -447,6 +550,17 @@ class CosmicDome {
       this.astrolabeUniforms.uSpeedup.value = this.astrolabeSpeedup;
       if (this.astrolabeSpeedup === this.targetAstrolabeSpeedup) this.astrolabeSpeedupRate = 0;
     }
+
+    if (this.mantraIntensityRate > 0) {
+      const step = delta * this.mantraIntensityRate;
+      if (this.mantraIntensity < this.targetMantraIntensity) {
+        this.mantraIntensity = Math.min(this.mantraIntensity + step, this.targetMantraIntensity);
+      } else {
+        this.mantraIntensity = Math.max(this.mantraIntensity - step, this.targetMantraIntensity);
+      }
+      this.mantraUniforms.uIntensity.value = this.mantraIntensity;
+      if (this.mantraIntensity === this.targetMantraIntensity) this.mantraIntensityRate = 0;
+    }
   }
 
   dispose() {
@@ -459,6 +573,8 @@ class CosmicDome {
     this.yantraMesh.material.dispose();
     this.astrolabeMesh.geometry.dispose();
     this.astrolabeMesh.material.dispose();
+    this.mantraMesh.geometry.dispose();
+    this.mantraMesh.material.dispose();
   }
 }
 

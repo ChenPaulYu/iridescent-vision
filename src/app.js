@@ -204,6 +204,7 @@ class IridescentVisionApp {
         if (this.cosmicDome) {
           this.cosmicDome.setIntensity(1.0, 2500);
           this.cosmicDome.bloomYantra(1500);
+          this.cosmicDome.setMantraIntensity(0.7, 4000);
         }
       }, 1, 5.5);
       shakeHead();
