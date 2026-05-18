@@ -39,6 +39,73 @@ const dustFragmentShader = /* glsl */`
   }
 `;
 
+const yantraVertexShader = /* glsl */`
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const yantraFragmentShader = /* glsl */`
+  uniform float uTime;
+  uniform float uBloomAmount;
+  uniform float uBloomRadius;
+  uniform vec3 uGoldColor;
+  uniform vec3 uBinduColor;
+  varying vec2 vUv;
+
+  float sdSegment(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+
+  float sdTri(vec2 p, vec2 a, vec2 b, vec2 c) {
+    return min(min(sdSegment(p, a, b), sdSegment(p, b, c)), sdSegment(p, c, a));
+  }
+
+  float downwardTri(vec2 p, float r) {
+    return sdTri(p, vec2(0.0, -r), vec2(-r * 0.866, r * 0.5), vec2(r * 0.866, r * 0.5));
+  }
+
+  float upwardTri(vec2 p, float r) {
+    return sdTri(p, vec2(0.0, r), vec2(-r * 0.866, -r * 0.5), vec2(r * 0.866, -r * 0.5));
+  }
+
+  void main() {
+    vec2 p = (vUv - 0.5) * 2.0;
+
+    float dist = 1000.0;
+    dist = min(dist, downwardTri(p, 0.95));
+    dist = min(dist, downwardTri(p, 0.72));
+    dist = min(dist, downwardTri(p, 0.52));
+    dist = min(dist, downwardTri(p, 0.34));
+    dist = min(dist, upwardTri(p, 0.88));
+    dist = min(dist, upwardTri(p, 0.66));
+    dist = min(dist, upwardTri(p, 0.46));
+    dist = min(dist, upwardTri(p, 0.28));
+
+    float core = exp(-dist * 110.0);
+    float halo = exp(-dist * 22.0);
+    float lineGlow = core * 2.4 + halo * 0.35;
+    lineGlow *= 0.78 + 0.22 * sin(uTime * 1.1);
+
+    float pRadius = length(p);
+    float revealMask = 1.0 - smoothstep(uBloomRadius - 0.06, uBloomRadius + 0.06, pRadius);
+    lineGlow *= revealMask;
+
+    float bindu = exp(-pRadius * pRadius * 240.0) * smoothstep(0.0, 0.06, uBloomRadius);
+
+    vec3 col = uGoldColor * lineGlow + uBinduColor * bindu * 2.4;
+    float alpha = (lineGlow * 0.9 + bindu * 1.2) * uBloomAmount;
+
+    if (alpha < 0.005) discard;
+    gl_FragColor = vec4(min(col, vec3(1.6)), min(alpha, 1.0));
+  }
+`;
+
 class CosmicDome {
   constructor(renderer, scene, options = {}) {
     this.renderer = renderer;
@@ -50,6 +117,10 @@ class CosmicDome {
         shellOuterRadius: 95,
         baseColor: 0x180b2c,
         glowColor: 0xc9a8ff,
+        goldColor: 0xffd95c,
+        binduColor: 0xff8a4a,
+        yantraSize: 70,
+        yantraDistance: -22,
       },
       options
     );
@@ -59,6 +130,13 @@ class CosmicDome {
     this.targetIntensity = 0;
     this.intensityTransitionRate = 0;
 
+    this.bloomAmount = 0;
+    this.targetBloomAmount = 0;
+    this.bloomAmountRate = 0;
+    this.bloomRadius = 0;
+    this.targetBloomRadius = 0;
+    this.bloomRadiusRate = 0;
+
     this.uniforms = {
       uTime: { value: 0 },
       uIntensity: { value: 0 },
@@ -66,11 +144,39 @@ class CosmicDome {
       uGlowColor: { value: new THREE.Color(this.options.glowColor) },
     };
 
+    this.yantraUniforms = {
+      uTime: this.uniforms.uTime,
+      uBloomAmount: { value: 0 },
+      uBloomRadius: { value: 0 },
+      uGoldColor: { value: new THREE.Color(this.options.goldColor) },
+      uBinduColor: { value: new THREE.Color(this.options.binduColor) },
+    };
+
     this.dustPoints = this.createDustSystem();
+    this.yantraMesh = this.createYantra();
     this.group = new THREE.Group();
     this.group.renderOrder = -20;
     this.group.add(this.dustPoints);
+    this.group.add(this.yantraMesh);
     this.group.visible = false;
+  }
+
+  createYantra() {
+    const geom = new THREE.PlaneGeometry(this.options.yantraSize, this.options.yantraSize);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: this.yantraUniforms,
+      vertexShader: yantraVertexShader,
+      fragmentShader: yantraFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(0, 0, this.options.yantraDistance);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = -15;
+    return mesh;
   }
 
   createDustSystem() {
@@ -147,6 +253,27 @@ class CosmicDome {
     }
   }
 
+  bloomYantra(durationMs = 1500, peakRadius = 1.15, peakAmount = 1.0) {
+    this.targetBloomRadius = peakRadius;
+    this.targetBloomAmount = peakAmount;
+    if (durationMs <= 0) {
+      this.bloomRadius = peakRadius;
+      this.bloomAmount = peakAmount;
+      this.yantraUniforms.uBloomRadius.value = peakRadius;
+      this.yantraUniforms.uBloomAmount.value = peakAmount;
+      this.bloomRadiusRate = 0;
+      this.bloomAmountRate = 0;
+    } else {
+      const secs = durationMs / 1000;
+      this.bloomRadiusRate = Math.abs(peakRadius - this.bloomRadius) / secs;
+      this.bloomAmountRate = Math.abs(peakAmount - this.bloomAmount) / secs;
+    }
+  }
+
+  collapseYantra(durationMs = 1500) {
+    this.bloomYantra(durationMs, 0, 0);
+  }
+
   spawnDust(opts = {}) {
     // Public API stub for sync-contract §3 (shared particle pool).
     // Full burst-spawn implementation will land when mask GoldFlakes ships.
@@ -172,6 +299,28 @@ class CosmicDome {
         this.intensityTransitionRate = 0;
       }
     }
+
+    if (this.bloomRadiusRate > 0) {
+      const step = delta * this.bloomRadiusRate;
+      if (this.bloomRadius < this.targetBloomRadius) {
+        this.bloomRadius = Math.min(this.bloomRadius + step, this.targetBloomRadius);
+      } else {
+        this.bloomRadius = Math.max(this.bloomRadius - step, this.targetBloomRadius);
+      }
+      this.yantraUniforms.uBloomRadius.value = this.bloomRadius;
+      if (this.bloomRadius === this.targetBloomRadius) this.bloomRadiusRate = 0;
+    }
+
+    if (this.bloomAmountRate > 0) {
+      const step = delta * this.bloomAmountRate;
+      if (this.bloomAmount < this.targetBloomAmount) {
+        this.bloomAmount = Math.min(this.bloomAmount + step, this.targetBloomAmount);
+      } else {
+        this.bloomAmount = Math.max(this.bloomAmount - step, this.targetBloomAmount);
+      }
+      this.yantraUniforms.uBloomAmount.value = this.bloomAmount;
+      if (this.bloomAmount === this.targetBloomAmount) this.bloomAmountRate = 0;
+    }
   }
 
   dispose() {
@@ -180,6 +329,8 @@ class CosmicDome {
     }
     this.dustPoints.geometry.dispose();
     this.dustPoints.material.dispose();
+    this.yantraMesh.geometry.dispose();
+    this.yantraMesh.material.dispose();
   }
 }
 

@@ -190,7 +190,10 @@ class IridescentVisionApp {
         this.headmove = new HeadMove(this.renderer, this.camera, this.scene, this.face, this.mesh, this.controls);
         this.headmove.enable(this.camera, this.face, this.mesh);
         this.setBackgroundPalette('orbit');
-        if (this.cosmicDome) this.cosmicDome.setIntensity(1.0, 2500);
+        if (this.cosmicDome) {
+          this.cosmicDome.setIntensity(1.0, 2500);
+          this.cosmicDome.bloomYantra(1500);
+        }
       }, 1, 5.5);
       shakeHead();
     };
