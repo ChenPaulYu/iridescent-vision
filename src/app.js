@@ -501,12 +501,50 @@ class IridescentVisionApp {
         );
       }
 
+      vec2 hash2(vec2 p) {
+        p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+        return fract(sin(p) * 43758.5453);
+      }
+
+      // Returns: x = distance to cell centre, y = distance to second
+      // closest centre (so y - x = distance to nearest edge), z = a
+      // per-cell hash for tinting.
+      vec3 voronoi(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        float d1 = 8.0;
+        float d2 = 8.0;
+        vec2 nearestCell = vec2(0.0);
+        for (int y = -1; y <= 1; y++) {
+          for (int x = -1; x <= 1; x++) {
+            vec2 cell = vec2(float(x), float(y));
+            vec2 jitter = hash2(i + cell) * 0.8 + 0.1;
+            vec2 r = cell + jitter - f;
+            float d = dot(r, r);
+            if (d < d1) {
+              d2 = d1; d1 = d;
+              nearestCell = i + cell;
+            } else if (d < d2) {
+              d2 = d;
+            }
+          }
+        }
+        return vec3(sqrt(d1), sqrt(d2), hash(nearestCell));
+      }
+
       void main() {
         // Two coordinate frames: structural ridges + organic noise.
         vec2 p = vLocalPos.xy * 4.0;
         float flow = uOrnamentFlow * uTime * 0.5;
         float ridges = sin(p.y * 2.2 + flow) * cos(p.x * 1.7 - flow * 0.6);
         float noise = vnoise(p * 1.6 + vec2(flow * 0.3, 0.0));
+
+        // Voronoi facet pattern — gives crystal-shell texture.
+        vec2 voronoiP = vLocalPos.xy * 0.9 + vec2(flow * 0.2, 0.0);
+        vec3 vor = voronoi(voronoiP);
+        float edgeDist = vor.y - vor.x;
+        float facetEdge = 1.0 - smoothstep(0.0, 0.15, edgeDist);
+        float cellTint = vor.z;
 
         // Combine: ridges define the line, noise breaks it up.
         float fabric = abs(ridges) * (0.65 + 0.45 * noise);
@@ -525,15 +563,18 @@ class IridescentVisionApp {
         // water effect) — face never reads flat once reveal is on.
         float baseCoverage = uOrnamentReveal * 0.55 * pulse * flakeMask;
         // PATTERN layer adds bright ridges on top of the base shimmer.
-        float patternLayer = pattern * uOrnamentReveal * pulse * flakeMask * 1.3;
+        float patternLayer = pattern * uOrnamentReveal * pulse * flakeMask * 1.0;
+        // FACET edges glow brighter (crystal-shell effect).
+        float facetLayer = facetEdge * uOrnamentReveal * 1.4 * pulse;
         // EYE layer for the third-eye region.
         float eyeLayer = eye * 1.4;
 
-        float total = baseCoverage + patternLayer + eyeLayer;
+        float total = baseCoverage + patternLayer + facetLayer + eyeLayer;
         if (total < 0.005) discard;
 
         // Three-colour iridescent: viewing angle picks base hue, time
-        // and noise add per-position swirl so every patch is unique.
+        // and noise add per-position swirl, plus per-facet hue offset
+        // so every cell of the crystal shell has its own tint.
         float facing = pow(vFacing, 1.4);
         vec3 viewBase = mix(uOrnamentLavender, uOrnamentGold, facing);
         vec3 viewHi = mix(viewBase, uOrnamentCyan, pow(vFacing, 4.5) * 0.85);
@@ -543,6 +584,13 @@ class IridescentVisionApp {
                          + sin(uTime * 0.7 + vLocalPos.x * 3.2) * 0.45;
         vec3 oilFilm = mix(viewHi, uOrnamentCyan, swirlShift * 0.35 * uIridescentShift);
         oilFilm = mix(oilFilm, uOrnamentLavender, smoothstep(0.55, 1.0, noise) * 0.4);
+
+        // Per-cell hue: each voronoi facet gets a distinct tint pulled
+        // from the iridescent triad based on the cell's hash value.
+        vec3 cellHueA = mix(uOrnamentLavender, uOrnamentCyan, cellTint);
+        vec3 cellHueB = mix(uOrnamentGold, uOrnamentLavender, cellTint);
+        vec3 cellHue = mix(cellHueA, cellHueB, cellTint * cellTint);
+        oilFilm = mix(oilFilm, cellHue, 0.45 * uIridescentShift);
 
         gl_FragColor = vec4(oilFilm * total * 1.35, total * 0.82);
       }

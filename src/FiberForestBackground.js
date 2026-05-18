@@ -74,18 +74,18 @@ const fiberVertexShader = /* glsl */`
     // follows a cubic curve with a per-fibre random control point,
     // bends downward and outward like real roots.
     float seedAngle = instSeed.x * 6.2832;
-    float seedRadius = 0.4 + instSeed.z * 1.8;
-    // Source point: small ring at top, not single point
+    float seedRadius = 2.0 + instSeed.z * 5.0;
+    // Source point: wider top cluster — looks like multiple roots emerging
     vec3 rootsTop = vec3(
       cos(seedAngle) * seedRadius,
-      uLength * 0.38 + sin(instSeed.y * 6.2832) * 2.0,
-      sin(seedAngle) * seedRadius
+      uLength * 0.36 + sin(instSeed.y * 6.2832) * 3.0,
+      sin(seedAngle) * seedRadius - 4.0
     );
-    // Endpoint: original instOffset position
-    vec3 rootsEnd = vec3(instOffset.x * 1.4, -uLength * 0.4, instOffset.y * 1.4);
-    // Control point: bends downward and slightly outward; per-fibre random offset
+    // Endpoint: pushed further out so curves are more dramatic
+    vec3 rootsEnd = vec3(instOffset.x * 1.8, -uLength * 0.45, instOffset.y * 1.8 + 4.0);
+    // Control point: bends way out then sweeps back inward
     float ctrlAngle = instSeed.y * 6.2832;
-    float ctrlPush = 4.0 + instSeed.z * 6.0;
+    float ctrlPush = 10.0 + instSeed.z * 14.0;
     vec3 ctrlA = vec3(
       mix(rootsTop.x, rootsEnd.x, 0.35) + cos(ctrlAngle) * ctrlPush,
       mix(rootsTop.y, rootsEnd.y, 0.55),
