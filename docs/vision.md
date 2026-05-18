@@ -57,16 +57,45 @@
 
 ## What's Done
 
+### Fiber forest (feature/shadertoy-fiber)
+
 - Pre-warmup palette tween + cinematic flash for the soft → gravity transition (`app.js:soft2Gravity`).
 - Ramped speedup with accelerating vertical scroll and synchronized mask / face lift during Ascension climax.
 - Throttled baseline vertical drift so the fiber forest doesn't empty during the long Ascension window.
 - Shared `uVerticalScroll` uniform across fibers, tunnel, and sparkles so the whole background rises together.
-- Shared palette + rim-color across fiber background and mask material via `setBackgroundPalette` / `tweenBackgroundPalette`.
+
+### Cosmic dome (feature/cosmic-dome — `CosmicDome.js`)
+
+All seven layers per `plan/cosmic-dome.md`:
+
+- **Layer 1 — Dust breath** — 2200 additive shell particles, slow noise drift, intensity ramped 0.08 (Awakening) → 1.0 (Orbit, at `gravity2Glass`). Burst pool (600 slots) reserved for shared particle ingestion.
+- **Layer 2 — Star map reveal** — astrolabe outer rings appear during the 2-second warm-up; flash exposes them against the warmed palette.
+- **Layer 3 — Persian astrolabe** — four concentric golden rings with tick highlights, alternating rotation rates. `pulseAstrolabe` accelerates briefly during the speedup spike.
+- **Layer 4 — Sri Yantra bloom** — procedural eight-triangle yantra + bindu, blooms from center over 1500ms at `gravity2Glass`. Refracted through `GlassSkin` — the mask becomes a window onto sacred geometry.
+- **Layer 5 — Mantra drift** — domain-warped fbm renders flowing stroke-like patterns in the mid-distance. Fades in during Orbit, supporting role only.
+- **Layer 6 — HeadMove resonance** — `dome.resonateWith(mode)` applies per-mode group transforms: shake oscillates sin on z+x, rotate spins z opposite the goddess, flake adds damped slow shake. Wired via `setHeadmoveMode` helper.
+- **Layer 7 — Decomposition** — `dome.decompose(durationMs)` staggers mantra/yantra/astrolabe fade-out with dust falling to a mid-level ambient. Triggered at `afterFlake`. Dome returns to Awakening's initial state — cycle closes.
+
+### Mask system (`app.js:applyMaskMaterial` + `app.js:attachOrnamentShell`)
+
+- **Ornament shader** — Separate inflated-shell mesh parented to the mask geometry so the ornament survives every `mesh.material` swap (SoftVolume / Gravity / GlassSkin). Procedural mehndi + girih + third-eye patterns driven by normal-derived 2D coords, with reveal / pulse / flow / flake / iridescent uniforms.
+- **Per-beat tweens** — Reveal kindles at warm-up, pulses at speedup, flows + third-eye opens at Orbit (Twin Opening), flakes off during Reflection (Twin Reset).
+
+### Tertiary systems
+
+- **PrayerBeads** (`PrayerBeads.js`) — three tilted elliptical orbits of 12 luminous beads each, follow the mask, react to HeadMove via shared `setHeadmoveMode`.
+- **GoldFlakes** (in `app.js:updateScene`) — during Reflection, periodic emissions call `cosmicDome.spawnDust({tint: gold, ...})` so the gold flaking off the mask enters the dome's particle pool — the gold becomes the dust the cycle will be reborn from.
+
+### Sync contracts (`plan/sync-contract.md`)
+
+- **§1 Shared palette** — `PaletteCoordinator` (`core/PaletteCoordinator.js`) owns canonical base/tip/glow/gold THREE.Color instances; fiber background, dome, prayer beads, mask material rim, and mask ornament all register as subsystems and receive every palette update.
+- **§2 Shared easing** — `core/easing.js` exports `easeInOutCubic`, `easeOutQuart`, `easeOutExpo`, `spikeAndReturn`. Palette tween and ornament tween accept named curves; the four Twin Moments use the documented profiles.
+- **§3 Shared particle pool** — `cosmicDome.spawnDust({position, velocity, count, tint, lifetime, scale})` writes into the 600-slot burst sub-system. The GoldFlakes emitter is the first real caller; mask-source and dome-source dust share one rendering pipeline.
 
 ## Open Threads
 
-- The speedup → `testTransparent` handoff at `t≈65.5` currently just kills the background. A short fade or palette flush would echo the soft → gravity polish.
-- The `orbit` → `reflection` palette swap at `afterFlake` (`t≈183.5`) is instant; route it through `tweenBackgroundPalette` for consistency.
-- Consider a closing motif at the end of `Activity` that visually echoes Awakening — the cycle should close, not just stop.
+- Final visual verification (full timeline through agent-browser) deferred this session — the daemon kept wedging mid-sequence. Most layers verified individually; final end-to-end pass still pending.
+- Authored ornament texture (`mask-evolution.md` open question #1) — current procedural placeholder unblocks integration but cultural fidelity will improve with a hand-painted multi-channel texture.
+- Closing motif at the end of `Activity` that visually echoes Awakening — the cycle currently relies on the dome's Layer 7 decomposition for closure; an Activity-stage callback could complete the rhyme.
 - Keyboard shortcuts and the (currently unused) `dat.gui` scaffolding in `SoftVolume.setGUI` are vestigial; expose as a deliberate debug panel or strip from production builds.
 - `GlassSkin.dispose()` references an undefined `CubeCamera` (`GlassSkin.js:75`) — latent bug, only matters if anyone calls `dispose` on the glass mode.
