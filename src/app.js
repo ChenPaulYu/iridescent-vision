@@ -380,6 +380,132 @@ class IridescentVisionApp {
     };
     mesh.material = material;
     this.maskMaterial = material;
+    this.attachOrnamentShell(mesh);
+  }
+
+  attachOrnamentShell(mesh) {
+    const ornamentUniforms = {
+      uOrnamentReveal: { value: 0.04 },
+      uThirdEyeReveal: { value: 0 },
+      uOrnamentPulse: { value: 0 },
+      uOrnamentFlow: { value: 0 },
+      uOrnamentFlake: { value: 0 },
+      uIridescentShift: { value: 0 },
+      uOrnamentColor: { value: new THREE.Color('#ffd95c') },
+      uTime: { value: 0 },
+    };
+
+    const ornamentVertex = `
+      varying vec3 vWorldNormal;
+      void main() {
+        vWorldNormal = normalize(normalMatrix * normal);
+        vec3 inflated = position + normal * 0.05;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(inflated, 1.0);
+      }
+    `;
+
+    const ornamentFragment = `
+      uniform float uTime;
+      uniform float uOrnamentReveal;
+      uniform float uThirdEyeReveal;
+      uniform float uOrnamentPulse;
+      uniform float uOrnamentFlow;
+      uniform float uOrnamentFlake;
+      uniform float uIridescentShift;
+      uniform vec3 uOrnamentColor;
+      varying vec3 vWorldNormal;
+
+      vec3 ornHueShift(vec3 col, float amount) {
+        const vec3 k = vec3(0.57735, 0.57735, 0.57735);
+        float c = cos(amount);
+        float s = sin(amount);
+        return col * c + cross(k, col) * s + k * dot(k, col) * (1.0 - c);
+      }
+
+      float ornHash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+
+      float ornNoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(ornHash(i), ornHash(i + vec2(1.0, 0.0)), f.x),
+          mix(ornHash(i + vec2(0.0, 1.0)), ornHash(i + vec2(1.0, 1.0)), f.x),
+          f.y
+        );
+      }
+
+      vec2 ornUvFromNormal(vec3 n) {
+        float u = atan(n.x, n.z) / 6.28318 + 0.5;
+        float v = acos(clamp(n.y, -1.0, 1.0)) / 3.14159;
+        return vec2(u, v);
+      }
+
+      float ornMehndi(vec2 p, float flow) {
+        p *= 14.0;
+        p += vec2(flow * uTime * 0.4, sin(p.x * 0.5 + uTime * flow * 0.3) * 0.6);
+        float a = sin(p.x * 1.3 + sin(p.y * 2.1) * 0.5);
+        float b = cos(p.y * 1.7 + sin(p.x * 1.9) * 0.5);
+        return smoothstep(0.86, 0.99, abs(a * b));
+      }
+
+      float ornGirih(vec2 p) {
+        vec2 c = (p - 0.5);
+        float r = length(c);
+        float a = atan(c.y, c.x);
+        float sectors = abs(sin(a * 6.0));
+        float rings = abs(sin(r * 22.0));
+        return smoothstep(0.88, 0.99, sectors * rings);
+      }
+
+      float ornThirdEye(vec2 p) {
+        vec2 c = p - vec2(0.5, 0.28);
+        float r = length(c);
+        float disc = exp(-r * r * 280.0);
+        float ring = exp(-pow(r - 0.07, 2.0) * 800.0) * 0.55;
+        return disc + ring;
+      }
+
+      void main() {
+        vec3 n = normalize(vWorldNormal);
+        vec2 ornUv = ornUvFromNormal(n);
+
+        float mehndi = ornMehndi(ornUv, uOrnamentFlow);
+        float girih = ornGirih(ornUv);
+        float thirdEye = ornThirdEye(ornUv) * uThirdEyeReveal;
+
+        float baseOrn = max(mehndi, girih * 0.85) * uOrnamentReveal;
+        float pulse = 0.7 + 0.3 * sin(uTime * 1.3) * uOrnamentPulse;
+        float flake = 1.0 - smoothstep(0.0, 1.0, uOrnamentFlake * (0.4 + 0.6 * ornNoise(ornUv * 18.0 + uTime * 0.4)));
+        float orn = baseOrn * pulse * flake + thirdEye;
+
+        if (orn < 0.01) discard;
+
+        vec3 ornCol = ornHueShift(uOrnamentColor, sin(uTime * 0.6 + ornUv.y * 4.0) * uIridescentShift);
+        gl_FragColor = vec4(ornCol * orn, orn * 0.9);
+      }
+    `;
+
+    const ornamentMat = new THREE.ShaderMaterial({
+      uniforms: ornamentUniforms,
+      vertexShader: ornamentVertex,
+      fragmentShader: ornamentFragment,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.FrontSide,
+    });
+
+    const ornamentMesh = new THREE.Mesh(mesh.geometry, ornamentMat);
+    ornamentMesh.name = 'maskOrnament';
+    ornamentMesh.renderOrder = 1;
+    ornamentMesh.frustumCulled = false;
+    mesh.add(ornamentMesh);
+
+    this.ornamentMesh = ornamentMesh;
+    this.ornamentUniforms = ornamentUniforms;
   }
 
   setBackgroundPalette(name) {
@@ -427,6 +553,30 @@ class IridescentVisionApp {
       }
       if (this.maskMaterial && this.maskMaterial.userData.setRimColor) {
         this.maskMaterial.userData.setRimColor(glow);
+      }
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  tweenOrnament(targets, durationMs = 1500) {
+    if (!this.ornamentUniforms) return;
+    const state = this.ornamentUniforms;
+    const start = {};
+    const end = {};
+    for (const key of Object.keys(targets)) {
+      const uniformKey = key.startsWith('u') ? key : 'u' + key[0].toUpperCase() + key.slice(1);
+      if (state[uniformKey]) {
+        start[uniformKey] = state[uniformKey].value;
+        end[uniformKey] = targets[key];
+      }
+    }
+    const startTime = performance.now();
+    const tick = () => {
+      const t = Math.min((performance.now() - startTime) / durationMs, 1);
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      for (const key of Object.keys(end)) {
+        state[key].value = start[key] + (end[key] - start[key]) * eased;
       }
       if (t < 1) requestAnimationFrame(tick);
     };
@@ -504,6 +654,9 @@ class IridescentVisionApp {
       }
     }
     if (this.cosmicDome) this.cosmicDome.update(delta);
+    if (this.ornamentUniforms) {
+      this.ornamentUniforms.uTime.value += delta;
+    }
     if (this.gravity && this.face) {
       const offset = this.face.position.clone().add(new THREE.Vector3(-2, 0, 23));
       this.gravity.update(offset);
