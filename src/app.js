@@ -17,6 +17,7 @@ import { TextLayer } from './TextLayer';
 import domeImage from './images/gradient.jpeg';
 import { Updater } from './core/Updater';
 import { EventBus } from './core/EventBus';
+import { getEasing } from './core/easing';
 
 class IridescentVisionApp {
   constructor() {
@@ -128,13 +129,13 @@ class IridescentVisionApp {
 
     const soft2Gravity = () => {
       this.soundHandler.scheduleToneTime(() => {
-        this.tweenBackgroundPalette('transition', 2000);
+        this.tweenBackgroundPalette('transition', 2000, 'easeInOutCubic');
         this.cinematicBuildup(2000);
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(0.28, 2000);
           this.cosmicDome.setIntensity(0.18, 2000);
         }
-        this.tweenOrnament({ reveal: 1.0 }, 1800);
+        this.tweenOrnament({ reveal: 1.0 }, 1800, 'easeInOutCubic');
       }, 27.5);
 
       this.soundHandler.scheduleToneTime(() => {
@@ -195,7 +196,7 @@ class IridescentVisionApp {
           this.cosmicDome.setAstrolabeIntensity(1.0, 800);
           this.cosmicDome.pulseAstrolabe(1.0, 700, 800);
         }
-        this.tweenOrnament({ pulse: 1.0, iridescentShift: 0.4 }, 700);
+        this.tweenOrnament({ pulse: 1.0, iridescentShift: 0.4 }, 1500, 'spikeAndReturn');
         this.setBackgroundPalette('ascension');
       }, 1, 4);
       gravity2Glass();
@@ -214,7 +215,7 @@ class IridescentVisionApp {
           this.cosmicDome.bloomYantra(1500);
           this.cosmicDome.setMantraIntensity(0.7, 4000);
         }
-        this.tweenOrnament({ flow: 1.0, thirdEye: 1.0, iridescentShift: 1.0 }, 1500);
+        this.tweenOrnament({ flow: 1.0, thirdEye: 1.0, iridescentShift: 1.0 }, 1500, 'easeOutQuart');
         if (this.prayerBeads) this.prayerBeads.setIntensity(1.0, 1800);
       }, 1, 5.5);
       shakeHead();
@@ -290,7 +291,7 @@ class IridescentVisionApp {
         this.setHeadmoveMode('flake');
         this.setBackgroundPalette('reflection');
         if (this.cosmicDome) this.cosmicDome.decompose(8000);
-        this.tweenOrnament({ flake: 0.95, thirdEye: 0, reveal: 0.1 }, 8000);
+        this.tweenOrnament({ flake: 0.95, thirdEye: 0, reveal: 0.1 }, 8000, 'easeOutExpo');
         if (this.prayerBeads) this.prayerBeads.setIntensity(0, 6000);
         this.goldFlakeState.active = true;
         this.goldFlakeState.rate = 22;
@@ -541,9 +542,10 @@ class IridescentVisionApp {
     }
   }
 
-  tweenBackgroundPalette(name, duration = 1500) {
+  tweenBackgroundPalette(name, duration = 1500, easingName = 'easeInOutCubic') {
     const target = this.palettes[name];
     if (!target || !this.background) return;
+    const ease = getEasing(easingName);
     const fromBase = this.background.uniforms.uBaseColor.value.clone();
     const fromTip = this.background.uniforms.uTipColor.value.clone();
     const fromGlow = this.background.uniforms.uGlowColor.value.clone();
@@ -555,7 +557,7 @@ class IridescentVisionApp {
       if (!this.background) return;
       const elapsed = performance.now() - start;
       const t = Math.min(elapsed / duration, 1);
-      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const eased = ease(t);
       const base = fromBase.clone().lerp(toBase, eased);
       const tip = fromTip.clone().lerp(toTip, eased);
       const glow = fromGlow.clone().lerp(toGlow, eased);
@@ -578,9 +580,10 @@ class IridescentVisionApp {
     requestAnimationFrame(tick);
   }
 
-  tweenOrnament(targets, durationMs = 1500) {
+  tweenOrnament(targets, durationMs = 1500, easingName = 'easeInOutCubic') {
     if (!this.ornamentUniforms) return;
     const state = this.ornamentUniforms;
+    const ease = getEasing(easingName);
     const start = {};
     const end = {};
     for (const key of Object.keys(targets)) {
@@ -593,7 +596,7 @@ class IridescentVisionApp {
     const startTime = performance.now();
     const tick = () => {
       const t = Math.min((performance.now() - startTime) / durationMs, 1);
-      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const eased = ease(t);
       for (const key of Object.keys(end)) {
         state[key].value = start[key] + (end[key] - start[key]) * eased;
       }
