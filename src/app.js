@@ -124,6 +124,10 @@ class IridescentVisionApp {
       this.soundHandler.scheduleToneTime(() => {
         this.tweenBackgroundPalette('transition', 2000);
         this.cinematicBuildup(2000);
+        if (this.cosmicDome) {
+          this.cosmicDome.setAstrolabeIntensity(0.28, 2000);
+          this.cosmicDome.setIntensity(0.18, 2000);
+        }
       }, 27.5);
 
       this.soundHandler.scheduleToneTime(() => {
@@ -136,7 +140,9 @@ class IridescentVisionApp {
         }
         if (this.gravity) this.gravity.enable();
         if (this.background) this.background.direction = 'up';
-        if (this.cosmicDome) this.cosmicDome.setAstrolabeIntensity(0.5, 4000);
+        if (this.cosmicDome) {
+          this.cosmicDome.setAstrolabeIntensity(0.55, 4000);
+        }
         bumpFlash();
       }, 29.5);
     };
