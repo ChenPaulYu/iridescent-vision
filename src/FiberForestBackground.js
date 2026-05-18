@@ -67,7 +67,9 @@ const fiberVertexShader = /* glsl */`
     vProgress = t;
     vNoise = wave + ripple * 0.3;
     vHue = instSeed.x * 0.5 + instSeed.z * 0.5;
-    vBrightness = 0.55 + instSeed.y * 0.45;
+    // Power curve so most fibres are dim with a few brighter ones —
+    // cinematic contrast like the reference (mostly dark purple base).
+    vBrightness = pow(instSeed.y, 2.5) * 1.2 + 0.25;
 
     // ROOTS mode (uMode = 0): organic branching tendrils. Each fibre
     // starts from a small cluster of source points (not single point),
@@ -143,10 +145,17 @@ const fiberFragmentShader = /* glsl */`
     // Per-fiber hue shift inside the iridescent family.
     vec3 hueOffset = vec3((vHue - 0.5) * 0.18, (vHue - 0.5) * -0.05, (vHue - 0.5) * 0.22);
     color += hueOffset;
+
+    // Chromatic aberration: split R/B subtly per fiber so bright strands
+    // gain a coloured fringe — cinematic / lens artefact feel.
+    float chromShift = (vHue - 0.5) * 0.35;
+    color.r *= 1.0 + chromShift * 0.4;
+    color.b *= 1.0 - chromShift * 0.3;
+
     color *= vBrightness;
 
-    gl_FragColor = vec4(color, alpha * 0.9 * uForestIntensity * (0.7 + 0.3 * vBrightness));
-    if (gl_FragColor.a < 0.02) discard;
+    gl_FragColor = vec4(color, alpha * 0.55 * uForestIntensity * (0.35 + 0.65 * vBrightness));
+    if (gl_FragColor.a < 0.015) discard;
   }
 `;
 
@@ -250,7 +259,7 @@ class FiberForestBackground {
     this.scene = scene;
     this.options = Object.assign(
       {
-        fiberCount: 900,
+        fiberCount: 380,
         length: 140,
         innerRadius: 5,
         radiusSpread: 22,
@@ -331,7 +340,7 @@ class FiberForestBackground {
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
     });
 
     this.mesh = new THREE.Mesh(this.geometry, this.material);
@@ -402,7 +411,7 @@ class FiberForestBackground {
       seeds[i3 + 1] = Math.random() * 2.0 + 0.5;
       seeds[i3 + 2] = Math.random() * 0.8 + 0.2;
 
-      widths[i] = Math.random() * 0.18 + 0.04;
+      widths[i] = Math.random() * 0.16 + 0.04;
       depths[i] = Math.random() * this.options.depthRange;
     }
 
