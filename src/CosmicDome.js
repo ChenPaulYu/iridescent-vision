@@ -251,7 +251,7 @@ class CosmicDome {
         shellOuterRadius: 95,
         baseColor: 0x180b2c,
         glowColor: 0xc9a8ff,
-        goldColor: 0xc99528,
+        goldColor: 0xe8d0ff,
         binduColor: 0xa84a2a,
         yantraSize: 70,
         yantraDistance: -22,

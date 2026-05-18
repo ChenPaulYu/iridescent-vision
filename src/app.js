@@ -430,10 +430,10 @@ class IridescentVisionApp {
       uOrnamentPulse: { value: 0 },
       uOrnamentFlow: { value: 0 },
       uOrnamentFlake: { value: 0 },
-      uIridescentShift: { value: 0.8 },
-      uOrnamentGold: { value: new THREE.Color('#e6a82e') },
-      uOrnamentLavender: { value: new THREE.Color('#a05cff') },
-      uOrnamentCyan: { value: new THREE.Color('#5ce0e8') },
+      uIridescentShift: { value: 0.85 },
+      uOrnamentGold: { value: new THREE.Color('#f0e0ff') },
+      uOrnamentLavender: { value: new THREE.Color('#9d80e0') },
+      uOrnamentCyan: { value: new THREE.Color('#a8f0ec') },
       uTime: { value: 0 },
     };
 

@@ -13,7 +13,7 @@ class PaletteCoordinator {
     this.base = new THREE.Color(initial.base || 0x11081a);
     this.tip = new THREE.Color(initial.tip || 0x6044ff);
     this.glow = new THREE.Color(initial.glow || 0xd5b4ff);
-    this.gold = new THREE.Color(initial.gold || 0xc99528);
+    this.gold = new THREE.Color(initial.gold || 0xe8d0ff);
     this.subsystems = [];
   }
 
