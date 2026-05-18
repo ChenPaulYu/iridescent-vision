@@ -430,10 +430,10 @@ class IridescentVisionApp {
       uOrnamentPulse: { value: 0 },
       uOrnamentFlow: { value: 0 },
       uOrnamentFlake: { value: 0 },
-      uIridescentShift: { value: 0.5 },
-      uOrnamentGold: { value: new THREE.Color('#b8860b') },
-      uOrnamentLavender: { value: new THREE.Color('#d8b5ff') },
-      uOrnamentCyan: { value: new THREE.Color('#b2fff7') },
+      uIridescentShift: { value: 0.8 },
+      uOrnamentGold: { value: new THREE.Color('#e6a82e') },
+      uOrnamentLavender: { value: new THREE.Color('#a05cff') },
+      uOrnamentCyan: { value: new THREE.Color('#5ce0e8') },
       uTime: { value: 0 },
     };
 
@@ -442,64 +442,90 @@ class IridescentVisionApp {
     // viewing-angle dot product, so the same surface shimmers as the
     // mask rotates — true iridescence, not flat gold.
     const ornamentVertex = `
-      uniform float uOrnamentFlow;
-      uniform float uTime;
-      varying float vPattern;
-      varying float vForehead;
+      varying vec3 vLocalPos;
+      varying vec3 vWorldNormal;
       varying float vFacing;
 
       void main() {
-        float ridge = sin(position.y * 8.0 + uTime * 0.6 * uOrnamentFlow)
-                    * cos(position.x * 6.5 - uTime * 0.4 * uOrnamentFlow);
-        vPattern = smoothstep(0.75, 0.95, abs(ridge));
-
-        float foreheadY = smoothstep(1.2, 2.8, position.y);
-        float foreheadCenter = 1.0 - smoothstep(0.0, 1.0, abs(position.x));
-        vForehead = foreheadY * foreheadCenter;
-
+        vLocalPos = position;
         vec3 inflated = position + normal * 0.06;
         vec4 viewPos = modelViewMatrix * vec4(inflated, 1.0);
         vec3 viewDir = normalize(-viewPos.xyz);
-        vec3 worldNormal = normalize(normalMatrix * normal);
-        vFacing = max(0.0, dot(worldNormal, viewDir));
-
+        vWorldNormal = normalize(normalMatrix * normal);
+        vFacing = max(0.0, dot(vWorldNormal, viewDir));
         gl_Position = projectionMatrix * viewPos;
       }
     `;
 
+    // Per-fragment noise gives proper broken / organic texture rather
+    // than the smooth gradient that vertex-baked patterns produce.
+    // Kept cheap: 1-octave hash noise (no fbm loop), single trig
+    // ridge, single smoothstep. View-dependent iridescent mix on top.
     const ornamentFragment = `
       uniform float uTime;
       uniform float uOrnamentReveal;
       uniform float uThirdEyeReveal;
       uniform float uOrnamentPulse;
+      uniform float uOrnamentFlow;
       uniform float uOrnamentFlake;
       uniform float uIridescentShift;
       uniform vec3 uOrnamentGold;
       uniform vec3 uOrnamentLavender;
       uniform vec3 uOrnamentCyan;
-      varying float vPattern;
-      varying float vForehead;
+      varying vec3 vLocalPos;
+      varying vec3 vWorldNormal;
       varying float vFacing;
 
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+
+      float vnoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+          mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+          f.y
+        );
+      }
+
       void main() {
-        float pulse = 1.0 + sin(uTime * 1.3) * 0.3 * uOrnamentPulse;
-        float flakeMask = 1.0 - uOrnamentFlake * (0.6 + 0.4 * sin(vPattern * 30.0 + uTime));
-        float orn = vPattern * uOrnamentReveal * pulse * flakeMask;
-        float eye = vForehead * uThirdEyeReveal;
+        // Two coordinate frames: structural ridges + organic noise.
+        vec2 p = vLocalPos.xy * 4.0;
+        float flow = uOrnamentFlow * uTime * 0.5;
+        float ridges = sin(p.y * 2.2 + flow) * cos(p.x * 1.7 - flow * 0.6);
+        float noise = vnoise(p * 1.6 + vec2(flow * 0.3, 0.0));
 
+        // Combine: ridges define the line, noise breaks it up.
+        float fabric = abs(ridges) * (0.65 + 0.45 * noise);
+        float pattern = smoothstep(0.5, 0.85, fabric);
+
+        // Forehead third-eye region.
+        float foreheadY = smoothstep(1.2, 2.8, vLocalPos.y);
+        float foreheadCenter = 1.0 - smoothstep(0.0, 1.0, abs(vLocalPos.x));
+        float eye = foreheadY * foreheadCenter * uThirdEyeReveal;
+
+        // Reveal / pulse / flake modulation.
+        float pulse = 1.0 + sin(uTime * 1.3) * 0.35 * uOrnamentPulse;
+        float flakeMask = 1.0 - uOrnamentFlake * (0.55 + 0.45 * noise);
+        float orn = pattern * uOrnamentReveal * pulse * flakeMask;
         float total = orn + eye;
-        if (total < 0.01) discard;
+        if (total < 0.005) discard;
 
-        // View-dependent iridescent mix.
+        // Three-colour iridescent: viewing angle picks base hue, the
+        // per-pixel noise then shifts it locally so every ridge has a
+        // slightly different tone.
         float facing = pow(vFacing, 1.4);
-        vec3 base = mix(uOrnamentLavender, uOrnamentGold, facing);
-        vec3 hued = mix(base, uOrnamentCyan, pow(vFacing, 5.0) * 0.65);
+        vec3 viewBase = mix(uOrnamentLavender, uOrnamentGold, facing);
+        vec3 viewHi = mix(viewBase, uOrnamentCyan, pow(vFacing, 4.5) * 0.75);
 
-        // Small time-based shimmer modulated by uIridescentShift.
-        float shimmer = sin(uTime * 0.7 + vPattern * 12.0) * 0.5 + 0.5;
-        vec3 finalCol = mix(hued, uOrnamentLavender, shimmer * 0.18 * uIridescentShift);
+        float localShift = noise * 1.4 + sin(uTime * 0.6 + vLocalPos.y * 3.0) * 0.5;
+        vec3 swirl = mix(viewHi, uOrnamentCyan, localShift * 0.25 * uIridescentShift);
+        swirl = mix(swirl, uOrnamentLavender, smoothstep(0.6, 1.0, noise) * 0.3);
 
-        gl_FragColor = vec4(finalCol * total * 1.3, total * 0.85);
+        gl_FragColor = vec4(swirl * total * 1.5, total * 0.9);
       }
     `;
 
