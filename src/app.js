@@ -115,8 +115,9 @@ class IridescentVisionApp {
         if (glow && this.maskMaterial && this.maskMaterial.userData.setRimColor) {
           this.maskMaterial.userData.setRimColor(glow);
         }
-        if (gold && this.ornamentUniforms) {
-          this.ornamentUniforms.uOrnamentColor.value.copy(gold);
+        if (this.ornamentUniforms) {
+          if (gold) this.ornamentUniforms.uOrnamentGold.value.copy(gold);
+          if (glow) this.ornamentUniforms.uOrnamentLavender.value.copy(glow);
         }
       },
     });
@@ -429,20 +430,23 @@ class IridescentVisionApp {
       uOrnamentPulse: { value: 0 },
       uOrnamentFlow: { value: 0 },
       uOrnamentFlake: { value: 0 },
-      uIridescentShift: { value: 0 },
-      uOrnamentColor: { value: new THREE.Color('#ffd95c') },
+      uIridescentShift: { value: 0.5 },
+      uOrnamentGold: { value: new THREE.Color('#b8860b') },
+      uOrnamentLavender: { value: new THREE.Color('#d8b5ff') },
+      uOrnamentCyan: { value: new THREE.Color('#b2fff7') },
       uTime: { value: 0 },
     };
 
-    // Light ornament: precomputes a per-vertex pattern signal that
-    // bakes mehndi-like ridges into the geometry pass. The fragment
-    // shader stays tiny so high-resolution mask geometries don't
-    // burn fill rate.
+    // Per-vertex pattern + view-dependent iridescent colour mix in
+    // fragment. Three hues (gold / lavender / cyan) blend based on the
+    // viewing-angle dot product, so the same surface shimmers as the
+    // mask rotates — true iridescence, not flat gold.
     const ornamentVertex = `
       uniform float uOrnamentFlow;
       uniform float uTime;
       varying float vPattern;
       varying float vForehead;
+      varying float vFacing;
 
       void main() {
         float ridge = sin(position.y * 8.0 + uTime * 0.6 * uOrnamentFlow)
@@ -454,7 +458,12 @@ class IridescentVisionApp {
         vForehead = foreheadY * foreheadCenter;
 
         vec3 inflated = position + normal * 0.06;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(inflated, 1.0);
+        vec4 viewPos = modelViewMatrix * vec4(inflated, 1.0);
+        vec3 viewDir = normalize(-viewPos.xyz);
+        vec3 worldNormal = normalize(normalMatrix * normal);
+        vFacing = max(0.0, dot(worldNormal, viewDir));
+
+        gl_Position = projectionMatrix * viewPos;
       }
     `;
 
@@ -465,9 +474,12 @@ class IridescentVisionApp {
       uniform float uOrnamentPulse;
       uniform float uOrnamentFlake;
       uniform float uIridescentShift;
-      uniform vec3 uOrnamentColor;
+      uniform vec3 uOrnamentGold;
+      uniform vec3 uOrnamentLavender;
+      uniform vec3 uOrnamentCyan;
       varying float vPattern;
       varying float vForehead;
+      varying float vFacing;
 
       void main() {
         float pulse = 1.0 + sin(uTime * 1.3) * 0.3 * uOrnamentPulse;
@@ -478,11 +490,16 @@ class IridescentVisionApp {
         float total = orn + eye;
         if (total < 0.01) discard;
 
-        vec3 col = uOrnamentColor;
-        col.r *= 1.0 + uIridescentShift * sin(uTime * 0.6);
-        col.b *= 1.0 + uIridescentShift * cos(uTime * 0.6);
+        // View-dependent iridescent mix.
+        float facing = pow(vFacing, 1.4);
+        vec3 base = mix(uOrnamentLavender, uOrnamentGold, facing);
+        vec3 hued = mix(base, uOrnamentCyan, pow(vFacing, 5.0) * 0.65);
 
-        gl_FragColor = vec4(col * total, total * 0.85);
+        // Small time-based shimmer modulated by uIridescentShift.
+        float shimmer = sin(uTime * 0.7 + vPattern * 12.0) * 0.5 + 0.5;
+        vec3 finalCol = mix(hued, uOrnamentLavender, shimmer * 0.18 * uIridescentShift);
+
+        gl_FragColor = vec4(finalCol * total * 1.3, total * 0.85);
       }
     `;
 
