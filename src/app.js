@@ -7,6 +7,7 @@ import { MouseLight } from './MouseLight';
 import { GlassSkin } from './GlassSkin';
 import { SoftVolume } from './SoftVolume';
 import { FiberForestBackground } from './FiberForestBackground';
+import { CosmicDome } from './CosmicDome';
 import { HeadMove } from './HeadMove';
 import { Activity } from './Activity';
 import { Gravity } from './Gravity';
@@ -31,6 +32,7 @@ class IridescentVisionApp {
     this.glassSkin = null;
     this.softVolume = null;
     this.background = null;
+    this.cosmicDome = null;
     this.gravity = null;
     this.headmove = null;
     this.activity = null;
@@ -91,6 +93,9 @@ class IridescentVisionApp {
     this.controls.enable = true;
 
     this.background = new FiberForestBackground(this.renderer, this.scene);
+    this.cosmicDome = new CosmicDome(this.renderer, this.scene);
+    this.cosmicDome.enable();
+    this.cosmicDome.setIntensity(0.08);
     this.setBackgroundPalette('awakening');
 
     this.initSound();
@@ -185,6 +190,7 @@ class IridescentVisionApp {
         this.headmove = new HeadMove(this.renderer, this.camera, this.scene, this.face, this.mesh, this.controls);
         this.headmove.enable(this.camera, this.face, this.mesh);
         this.setBackgroundPalette('orbit');
+        if (this.cosmicDome) this.cosmicDome.setIntensity(1.0, 2500);
       }, 1, 5.5);
       shakeHead();
     };
@@ -366,6 +372,9 @@ class IridescentVisionApp {
     if (this.background && this.background.setPalette) {
       this.background.setPalette(palette);
     }
+    if (this.cosmicDome) {
+      this.cosmicDome.setPalette({ base: palette.base, glow: palette.glow });
+    }
     if (this.maskMaterial && this.maskMaterial.userData.setRimColor) {
       this.maskMaterial.userData.setRimColor(palette.glow);
     }
@@ -394,6 +403,12 @@ class IridescentVisionApp {
         tip: '#' + tip.getHexString(),
         glow: '#' + glow.getHexString(),
       });
+      if (this.cosmicDome) {
+        this.cosmicDome.setPalette({
+          base: '#' + base.getHexString(),
+          glow: '#' + glow.getHexString(),
+        });
+      }
       if (this.maskMaterial && this.maskMaterial.userData.setRimColor) {
         this.maskMaterial.userData.setRimColor(glow);
       }
@@ -463,6 +478,7 @@ class IridescentVisionApp {
         if (this.face) this.face.position.y += lift;
       }
     }
+    if (this.cosmicDome) this.cosmicDome.update(delta);
     if (this.gravity && this.face) {
       const offset = this.face.position.clone().add(new THREE.Vector3(-2, 0, 23));
       this.gravity.update(offset);
