@@ -35,6 +35,7 @@ class IridescentVisionApp {
     this.background = null;
     this.cosmicDome = null;
     this.prayerBeads = null;
+    this.goldFlakeState = { active: false, rate: 0, timer: 0 };
     this.gravity = null;
     this.headmove = null;
     this.activity = null;
@@ -291,6 +292,13 @@ class IridescentVisionApp {
         if (this.cosmicDome) this.cosmicDome.decompose(8000);
         this.tweenOrnament({ flake: 0.95, thirdEye: 0, reveal: 0.1 }, 8000);
         if (this.prayerBeads) this.prayerBeads.setIntensity(0, 6000);
+        this.goldFlakeState.active = true;
+        this.goldFlakeState.rate = 22;
+        this.goldFlakeState.timer = 0;
+        setTimeout(() => {
+          this.goldFlakeState.rate = 0;
+          this.goldFlakeState.active = false;
+        }, 9000);
       }, 3, 44);
       enableActivity();
     };
@@ -672,6 +680,32 @@ class IridescentVisionApp {
       this.ornamentUniforms.uTime.value += delta;
     }
     if (this.prayerBeads && this.mesh) this.prayerBeads.update(delta, this.mesh.position);
+    if (this.goldFlakeState.active && this.cosmicDome && this.mesh) {
+      this.goldFlakeState.timer += delta;
+      const interval = 1 / Math.max(this.goldFlakeState.rate, 0.01);
+      while (this.goldFlakeState.timer >= interval) {
+        this.goldFlakeState.timer -= interval;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 4.5;
+        const offset = new THREE.Vector3(
+          Math.sin(phi) * Math.cos(theta) * r,
+          Math.sin(phi) * Math.sin(theta) * r,
+          Math.cos(phi) * r
+        );
+        const spawnPos = this.mesh.position.clone().add(offset);
+        const outward = offset.clone().normalize().multiplyScalar(1.6 + Math.random() * 1.4);
+        outward.y += (Math.random() - 0.3) * 0.6;
+        this.cosmicDome.spawnDust({
+          position: spawnPos,
+          velocity: outward,
+          count: 2,
+          tint: 0xffd95c,
+          lifetime: 5.0 + Math.random() * 2.0,
+          scale: 1.4 + Math.random() * 0.8,
+        });
+      }
+    }
     if (this.gravity && this.face) {
       const offset = this.face.position.clone().add(new THREE.Vector3(-2, 0, 23));
       this.gravity.update(offset);

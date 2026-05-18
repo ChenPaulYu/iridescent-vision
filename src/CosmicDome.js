@@ -39,6 +39,35 @@ const dustFragmentShader = /* glsl */`
   }
 `;
 
+const burstVertexShader = /* glsl */`
+  attribute vec3 burstTint;
+  attribute float burstLife;
+  attribute float burstScale;
+  varying vec3 vTint;
+  varying float vLife;
+
+  void main() {
+    vTint = burstTint;
+    vLife = burstLife;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = burstScale * (300.0 / -mv.z) * burstLife;
+  }
+`;
+
+const burstFragmentShader = /* glsl */`
+  varying vec3 vTint;
+  varying float vLife;
+
+  void main() {
+    vec2 coord = gl_PointCoord - 0.5;
+    float dist = length(coord);
+    float soft = smoothstep(0.5, 0.0, dist);
+    if (soft < 0.02 || vLife <= 0.0) discard;
+    gl_FragColor = vec4(vTint, soft * vLife * 0.8);
+  }
+`;
+
 const yantraVertexShader = /* glsl */`
   varying vec2 vUv;
   void main() {
@@ -230,6 +259,8 @@ class CosmicDome {
         astrolabeDistance: -55,
         mantraSize: 110,
         mantraDistance: -38,
+        burstCapacity: 600,
+        burstDefaultLifetime: 4.5,
       },
       options
     );
@@ -293,13 +324,44 @@ class CosmicDome {
     this.yantraMesh = this.createYantra();
     this.astrolabeMesh = this.createAstrolabe();
     this.mantraMesh = this.createMantra();
+    this.burstPoints = this.createBurstPool();
     this.group = new THREE.Group();
     this.group.renderOrder = -20;
     this.group.add(this.dustPoints);
     this.group.add(this.astrolabeMesh);
     this.group.add(this.mantraMesh);
     this.group.add(this.yantraMesh);
+    this.group.add(this.burstPoints);
     this.group.visible = false;
+  }
+
+  createBurstPool() {
+    const cap = this.options.burstCapacity;
+    const positions = new Float32Array(cap * 3);
+    const velocities = new Float32Array(cap * 3);
+    const tints = new Float32Array(cap * 3);
+    const lives = new Float32Array(cap);
+    const maxLives = new Float32Array(cap);
+    const scales = new Float32Array(cap);
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('burstTint', new THREE.BufferAttribute(tints, 3));
+    geom.setAttribute('burstLife', new THREE.BufferAttribute(lives, 1));
+    geom.setAttribute('burstScale', new THREE.BufferAttribute(scales, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: burstVertexShader,
+      fragmentShader: burstFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const points = new THREE.Points(geom, mat);
+    points.frustumCulled = false;
+    points.userData = { velocities, maxLives, cursor: 0 };
+    return points;
   }
 
   createMantra() {
@@ -496,13 +558,41 @@ class CosmicDome {
     }, riseMs);
   }
 
-  spawnDust(opts = {}) {
-    // Public API stub for sync-contract §3 (shared particle pool).
-    // Full burst-spawn implementation will land when mask GoldFlakes ships.
-    // Logged so the wiring can be verified end-to-end ahead of time.
-    if (typeof console !== 'undefined' && console.debug) {
-      console.debug('[CosmicDome.spawnDust]', opts);
+  spawnDust({ position, velocity, count = 1, tint, lifetime, scale } = {}) {
+    if (!position) return;
+    const pool = this.burstPoints;
+    const cap = this.options.burstCapacity;
+    const positions = pool.geometry.attributes.position.array;
+    const tints = pool.geometry.attributes.burstTint.array;
+    const lives = pool.geometry.attributes.burstLife.array;
+    const scales = pool.geometry.attributes.burstScale.array;
+    const velocities = pool.userData.velocities;
+    const maxLives = pool.userData.maxLives;
+    const defaultColor = tint ? new THREE.Color(tint) : this.uniforms.uGlowColor.value;
+    const life = lifetime != null ? lifetime : this.options.burstDefaultLifetime;
+    const baseVel = velocity || new THREE.Vector3(0, 0, 0);
+    const baseScale = scale != null ? scale : 1.6;
+
+    for (let i = 0; i < count; i++) {
+      const idx = pool.userData.cursor;
+      pool.userData.cursor = (pool.userData.cursor + 1) % cap;
+      positions[idx * 3] = position.x + (Math.random() - 0.5) * 0.4;
+      positions[idx * 3 + 1] = position.y + (Math.random() - 0.5) * 0.4;
+      positions[idx * 3 + 2] = position.z + (Math.random() - 0.5) * 0.4;
+      velocities[idx * 3] = baseVel.x + (Math.random() - 0.5) * 0.6;
+      velocities[idx * 3 + 1] = baseVel.y + (Math.random() - 0.5) * 0.6;
+      velocities[idx * 3 + 2] = baseVel.z + (Math.random() - 0.5) * 0.6;
+      tints[idx * 3] = defaultColor.r;
+      tints[idx * 3 + 1] = defaultColor.g;
+      tints[idx * 3 + 2] = defaultColor.b;
+      lives[idx] = 1.0;
+      maxLives[idx] = life;
+      scales[idx] = baseScale * (0.7 + Math.random() * 0.6);
     }
+    pool.geometry.attributes.position.needsUpdate = true;
+    pool.geometry.attributes.burstTint.needsUpdate = true;
+    pool.geometry.attributes.burstLife.needsUpdate = true;
+    pool.geometry.attributes.burstScale.needsUpdate = true;
   }
 
   update(delta = 0) {
@@ -583,6 +673,32 @@ class CosmicDome {
       if (this.astrolabeSpeedup === this.targetAstrolabeSpeedup) this.astrolabeSpeedupRate = 0;
     }
 
+    if (this.burstPoints) {
+      const pool = this.burstPoints;
+      const positions = pool.geometry.attributes.position.array;
+      const lives = pool.geometry.attributes.burstLife.array;
+      const velocities = pool.userData.velocities;
+      const maxLives = pool.userData.maxLives;
+      const cap = this.options.burstCapacity;
+      let anyAlive = false;
+      for (let i = 0; i < cap; i++) {
+        if (lives[i] <= 0.0) continue;
+        anyAlive = true;
+        positions[i * 3] += velocities[i * 3] * delta;
+        positions[i * 3 + 1] += velocities[i * 3 + 1] * delta;
+        positions[i * 3 + 2] += velocities[i * 3 + 2] * delta;
+        velocities[i * 3] *= 0.985;
+        velocities[i * 3 + 1] *= 0.985;
+        velocities[i * 3 + 2] *= 0.985;
+        const decay = delta / maxLives[i];
+        lives[i] = Math.max(0, lives[i] - decay);
+      }
+      if (anyAlive) {
+        pool.geometry.attributes.position.needsUpdate = true;
+        pool.geometry.attributes.burstLife.needsUpdate = true;
+      }
+    }
+
     if (this.mantraIntensityRate > 0) {
       const step = delta * this.mantraIntensityRate;
       if (this.mantraIntensity < this.targetMantraIntensity) {
@@ -607,6 +723,8 @@ class CosmicDome {
     this.astrolabeMesh.material.dispose();
     this.mantraMesh.geometry.dispose();
     this.mantraMesh.material.dispose();
+    this.burstPoints.geometry.dispose();
+    this.burstPoints.material.dispose();
   }
 }
 
