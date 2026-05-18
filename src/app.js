@@ -136,6 +136,7 @@ class IridescentVisionApp {
         }
         if (this.gravity) this.gravity.enable();
         if (this.background) this.background.direction = 'up';
+        if (this.cosmicDome) this.cosmicDome.setAstrolabeIntensity(0.5, 4000);
         bumpFlash();
       }, 29.5);
     };
@@ -176,6 +177,10 @@ class IridescentVisionApp {
       this.soundHandler.schedule(() => {
         if (this.background) {
           this.background.speedup = true;
+        }
+        if (this.cosmicDome) {
+          this.cosmicDome.setAstrolabeIntensity(1.0, 800);
+          this.cosmicDome.pulseAstrolabe(1.0, 700, 800);
         }
         this.setBackgroundPalette('ascension');
       }, 1, 4);

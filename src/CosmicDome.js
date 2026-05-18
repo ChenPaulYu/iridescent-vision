@@ -47,6 +47,52 @@ const yantraVertexShader = /* glsl */`
   }
 `;
 
+const astrolabeVertexShader = yantraVertexShader;
+
+const astrolabeFragmentShader = /* glsl */`
+  uniform float uTime;
+  uniform float uIntensity;
+  uniform float uSpeedup;
+  uniform vec3 uGoldColor;
+  varying vec2 vUv;
+
+  float ringBand(float r, float radius, float thickness) {
+    return exp(-abs(r - radius) * thickness);
+  }
+
+  float ringWithTicks(vec2 p, float radius, float tickCount, float rotation, float bandThickness) {
+    float r = length(p);
+    float ring = ringBand(r, radius, bandThickness);
+    float a = atan(p.y, p.x) + rotation;
+    float interval = 6.28318 / tickCount;
+    float tickPos = mod(a, interval);
+    float tickDist = min(tickPos, interval - tickPos);
+    float tickHighlight = smoothstep(0.05, 0.0, tickDist);
+    return ring * (1.0 + tickHighlight * 2.2);
+  }
+
+  void main() {
+    vec2 p = (vUv - 0.5) * 2.0;
+    float r = length(p);
+
+    float speed = 1.0 + uSpeedup * 8.0;
+    float total = 0.0;
+    total += ringWithTicks(p, 0.96, 24.0,  uTime * 0.05 * speed, 220.0);
+    total += ringWithTicks(p, 0.78, 16.0, -uTime * 0.07 * speed, 240.0) * 0.85;
+    total += ringWithTicks(p, 0.62, 12.0,  uTime * 0.045 * speed, 260.0) * 0.75;
+    total += ringWithTicks(p, 0.46,  8.0, -uTime * 0.06 * speed, 280.0) * 0.65;
+
+    float outerFade = 1.0 - smoothstep(0.96, 1.05, r);
+    float innerFade = smoothstep(0.42, 0.48, r);
+    total *= outerFade * innerFade;
+
+    vec3 col = uGoldColor * total * uIntensity;
+    float alpha = total * uIntensity * 0.5;
+    if (alpha < 0.01) discard;
+    gl_FragColor = vec4(col, alpha);
+  }
+`;
+
 const yantraFragmentShader = /* glsl */`
   uniform float uTime;
   uniform float uBloomAmount;
@@ -121,6 +167,8 @@ class CosmicDome {
         binduColor: 0xff8a4a,
         yantraSize: 70,
         yantraDistance: -22,
+        astrolabeSize: 130,
+        astrolabeDistance: -55,
       },
       options
     );
@@ -137,6 +185,13 @@ class CosmicDome {
     this.targetBloomRadius = 0;
     this.bloomRadiusRate = 0;
 
+    this.astrolabeIntensity = 0;
+    this.targetAstrolabeIntensity = 0;
+    this.astrolabeIntensityRate = 0;
+    this.astrolabeSpeedup = 0;
+    this.targetAstrolabeSpeedup = 0;
+    this.astrolabeSpeedupRate = 0;
+
     this.uniforms = {
       uTime: { value: 0 },
       uIntensity: { value: 0 },
@@ -152,13 +207,40 @@ class CosmicDome {
       uBinduColor: { value: new THREE.Color(this.options.binduColor) },
     };
 
+    this.astrolabeUniforms = {
+      uTime: this.uniforms.uTime,
+      uIntensity: { value: 0 },
+      uSpeedup: { value: 0 },
+      uGoldColor: { value: new THREE.Color(this.options.goldColor) },
+    };
+
     this.dustPoints = this.createDustSystem();
     this.yantraMesh = this.createYantra();
+    this.astrolabeMesh = this.createAstrolabe();
     this.group = new THREE.Group();
     this.group.renderOrder = -20;
     this.group.add(this.dustPoints);
+    this.group.add(this.astrolabeMesh);
     this.group.add(this.yantraMesh);
     this.group.visible = false;
+  }
+
+  createAstrolabe() {
+    const geom = new THREE.PlaneGeometry(this.options.astrolabeSize, this.options.astrolabeSize);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: this.astrolabeUniforms,
+      vertexShader: astrolabeVertexShader,
+      fragmentShader: astrolabeFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(0, 0, this.options.astrolabeDistance);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = -18;
+    return mesh;
   }
 
   createYantra() {
@@ -274,6 +356,28 @@ class CosmicDome {
     this.bloomYantra(durationMs, 0, 0);
   }
 
+  setAstrolabeIntensity(target, durationMs = 0) {
+    const clamped = Math.max(0, Math.min(1, target));
+    this.targetAstrolabeIntensity = clamped;
+    if (durationMs <= 0) {
+      this.astrolabeIntensity = clamped;
+      this.astrolabeUniforms.uIntensity.value = clamped;
+      this.astrolabeIntensityRate = 0;
+    } else {
+      this.astrolabeIntensityRate =
+        Math.abs(clamped - this.astrolabeIntensity) / (durationMs / 1000);
+    }
+  }
+
+  pulseAstrolabe(peakSpeed = 1.0, riseMs = 600, fallMs = 900) {
+    this.targetAstrolabeSpeedup = peakSpeed;
+    this.astrolabeSpeedupRate = Math.abs(peakSpeed - this.astrolabeSpeedup) / (riseMs / 1000);
+    setTimeout(() => {
+      this.targetAstrolabeSpeedup = 0;
+      this.astrolabeSpeedupRate = Math.abs(this.astrolabeSpeedup) / (fallMs / 1000);
+    }, riseMs);
+  }
+
   spawnDust(opts = {}) {
     // Public API stub for sync-contract §3 (shared particle pool).
     // Full burst-spawn implementation will land when mask GoldFlakes ships.
@@ -321,6 +425,28 @@ class CosmicDome {
       this.yantraUniforms.uBloomAmount.value = this.bloomAmount;
       if (this.bloomAmount === this.targetBloomAmount) this.bloomAmountRate = 0;
     }
+
+    if (this.astrolabeIntensityRate > 0) {
+      const step = delta * this.astrolabeIntensityRate;
+      if (this.astrolabeIntensity < this.targetAstrolabeIntensity) {
+        this.astrolabeIntensity = Math.min(this.astrolabeIntensity + step, this.targetAstrolabeIntensity);
+      } else {
+        this.astrolabeIntensity = Math.max(this.astrolabeIntensity - step, this.targetAstrolabeIntensity);
+      }
+      this.astrolabeUniforms.uIntensity.value = this.astrolabeIntensity;
+      if (this.astrolabeIntensity === this.targetAstrolabeIntensity) this.astrolabeIntensityRate = 0;
+    }
+
+    if (this.astrolabeSpeedupRate > 0) {
+      const step = delta * this.astrolabeSpeedupRate;
+      if (this.astrolabeSpeedup < this.targetAstrolabeSpeedup) {
+        this.astrolabeSpeedup = Math.min(this.astrolabeSpeedup + step, this.targetAstrolabeSpeedup);
+      } else {
+        this.astrolabeSpeedup = Math.max(this.astrolabeSpeedup - step, this.targetAstrolabeSpeedup);
+      }
+      this.astrolabeUniforms.uSpeedup.value = this.astrolabeSpeedup;
+      if (this.astrolabeSpeedup === this.targetAstrolabeSpeedup) this.astrolabeSpeedupRate = 0;
+    }
   }
 
   dispose() {
@@ -331,6 +457,8 @@ class CosmicDome {
     this.dustPoints.material.dispose();
     this.yantraMesh.geometry.dispose();
     this.yantraMesh.material.dispose();
+    this.astrolabeMesh.geometry.dispose();
+    this.astrolabeMesh.material.dispose();
   }
 }
 
