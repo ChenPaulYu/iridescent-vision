@@ -11,6 +11,7 @@ const fiberVertexShader = /* glsl */`
   uniform float uWaveAmp;
   uniform float uVerticalScroll;
   uniform float uVerticalWrap;
+  uniform float uMode;
   attribute float progress;
   attribute vec3 instOffset;
   attribute vec3 instSeed;
@@ -68,7 +69,55 @@ const fiberVertexShader = /* glsl */`
     vHue = instSeed.x * 0.5 + instSeed.z * 0.5;
     vBrightness = 0.55 + instSeed.y * 0.45;
 
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(finalPosition, 1.0);
+    // ROOTS mode (uMode = 0): organic branching tendrils. Each fibre
+    // starts from a small cluster of source points (not single point),
+    // follows a cubic curve with a per-fibre random control point,
+    // bends downward and outward like real roots.
+    float seedAngle = instSeed.x * 6.2832;
+    float seedRadius = 0.4 + instSeed.z * 1.8;
+    // Source point: small ring at top, not single point
+    vec3 rootsTop = vec3(
+      cos(seedAngle) * seedRadius,
+      uLength * 0.38 + sin(instSeed.y * 6.2832) * 2.0,
+      sin(seedAngle) * seedRadius
+    );
+    // Endpoint: original instOffset position
+    vec3 rootsEnd = vec3(instOffset.x * 1.4, -uLength * 0.4, instOffset.y * 1.4);
+    // Control point: bends downward and slightly outward; per-fibre random offset
+    float ctrlAngle = instSeed.y * 6.2832;
+    float ctrlPush = 4.0 + instSeed.z * 6.0;
+    vec3 ctrlA = vec3(
+      mix(rootsTop.x, rootsEnd.x, 0.35) + cos(ctrlAngle) * ctrlPush,
+      mix(rootsTop.y, rootsEnd.y, 0.55),
+      mix(rootsTop.z, rootsEnd.z, 0.35) + sin(ctrlAngle) * ctrlPush
+    );
+    vec3 ctrlB = vec3(
+      mix(rootsTop.x, rootsEnd.x, 0.7) + cos(ctrlAngle + 1.5) * ctrlPush * 0.6,
+      mix(rootsTop.y, rootsEnd.y, 0.8),
+      mix(rootsTop.z, rootsEnd.z, 0.7) + sin(ctrlAngle + 1.5) * ctrlPush * 0.6
+    );
+    // Cubic Bezier: B(t) = (1-t)^3 P0 + 3(1-t)^2 t P1 + 3(1-t) t^2 P2 + t^3 P3
+    float ti = 1.0 - t;
+    vec3 rootsPos = ti*ti*ti * rootsTop
+                  + 3.0*ti*ti*t * ctrlA
+                  + 3.0*ti*t*t * ctrlB
+                  + t*t*t * rootsEnd;
+    // Per-fibre time wobble — slight breathing
+    rootsPos.x += sin(uTime * 0.3 + instSeed.x * 7.5) * 0.7 * (0.3 + 0.7 * t);
+    rootsPos.z += cos(uTime * 0.25 + instSeed.y * 7.5) * 0.7 * (0.3 + 0.7 * t);
+    // High-frequency twig wobble for texture
+    rootsPos.x += sin(t * 22.0 + instSeed.x * 6.0) * 0.18;
+    rootsPos.z += cos(t * 24.0 + instSeed.y * 6.0) * 0.18;
+    rootsPos.y += yShift * 0.35;
+    // Width tapers from thick base to thin tip
+    float widthTaper = mix(1.6, 0.4, t);
+    rootsPos.x += position.x * instWidth * widthTaper;
+    rootsPos.z += position.x * instWidth * widthTaper * 0.35;
+
+    float modeBlend = clamp(uMode, 0.0, 1.0);
+    vec3 blendedPosition = mix(rootsPos, finalPosition, modeBlend);
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(blendedPosition, 1.0);
   }
 `;
 
@@ -245,11 +294,16 @@ class FiberForestBackground {
       uVerticalScroll: { value: 0 },
       uVerticalWrap: { value: this.options.verticalWrap },
       uForestIntensity: { value: 1.0 },
+      uMode: { value: 0.0 },
     };
 
     this.forestIntensity = 1.0;
     this.targetForestIntensity = 1.0;
     this.forestIntensityRate = 0;
+
+    this.mode = 0.0;
+    this.targetMode = 0.0;
+    this.modeRate = 0;
 
     this.tunnelUniforms = {
       uTime: this.uniforms.uTime,
@@ -441,6 +495,18 @@ class FiberForestBackground {
     this.renderer.setClearColor(targetColor);
   }
 
+  setMode(target, durationMs = 0) {
+    const clamped = Math.max(0, Math.min(1, target));
+    this.targetMode = clamped;
+    if (durationMs <= 0) {
+      this.mode = clamped;
+      this.uniforms.uMode.value = clamped;
+      this.modeRate = 0;
+    } else {
+      this.modeRate = Math.abs(clamped - this.mode) / (durationMs / 1000);
+    }
+  }
+
   setForestIntensity(target, durationMs = 0) {
     const clamped = Math.max(0, Math.min(1, target));
     this.targetForestIntensity = clamped;
@@ -471,6 +537,17 @@ class FiberForestBackground {
       }
       this.uniforms.uForestIntensity.value = this.forestIntensity;
       if (this.forestIntensity === this.targetForestIntensity) this.forestIntensityRate = 0;
+    }
+
+    if (this.modeRate > 0) {
+      const step = delta * this.modeRate;
+      if (this.mode < this.targetMode) {
+        this.mode = Math.min(this.mode + step, this.targetMode);
+      } else {
+        this.mode = Math.max(this.mode - step, this.targetMode);
+      }
+      this.uniforms.uMode.value = this.mode;
+      if (this.mode === this.targetMode) this.modeRate = 0;
     }
 
     if (this.speedup) {

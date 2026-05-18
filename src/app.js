@@ -168,6 +168,7 @@ class IridescentVisionApp {
         if (this.background) {
           this.background.direction = 'up';
           this.background.setForestIntensity(0.18, 3500);
+          this.background.setMode(1.0, 2500);
         }
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(0.55, 4000);
