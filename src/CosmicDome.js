@@ -246,7 +246,7 @@ class CosmicDome {
     this.scene = scene;
     this.options = Object.assign(
       {
-        ambientCount: 1500,
+        ambientCount: 900,
         shellInnerRadius: 28,
         shellOuterRadius: 95,
         baseColor: 0x180b2c,

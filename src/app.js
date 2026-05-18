@@ -100,7 +100,8 @@ class IridescentVisionApp {
     this.background = new FiberForestBackground(this.renderer, this.scene);
     this.cosmicDome = new CosmicDome(this.renderer, this.scene);
     this.cosmicDome.enable();
-    this.cosmicDome.setIntensity(0.08);
+    this.cosmicDome.setIntensity(0.25);
+    this.cosmicDome.setAstrolabeIntensity(0.12);
     this.prayerBeads = new PrayerBeads(this.scene);
     this.prayerBeads.enable();
     this.prayerBeads.setIntensity(0);
@@ -422,7 +423,7 @@ class IridescentVisionApp {
 
   attachOrnamentShell(mesh) {
     const ornamentUniforms = {
-      uOrnamentReveal: { value: 0.04 },
+      uOrnamentReveal: { value: 0.35 },
       uThirdEyeReveal: { value: 0 },
       uOrnamentPulse: { value: 0 },
       uOrnamentFlow: { value: 0 },
