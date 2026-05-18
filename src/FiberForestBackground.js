@@ -72,6 +72,7 @@ const fiberFragmentShader = /* glsl */`
   uniform vec3 uBaseColor;
   uniform vec3 uTipColor;
   uniform vec3 uGlowColor;
+  uniform float uForestIntensity;
   varying float vProgress;
   varying float vNoise;
 
@@ -79,7 +80,7 @@ const fiberFragmentShader = /* glsl */`
     float alpha = smoothstep(0.02, 0.2, vProgress) * (1.0 - vProgress);
     vec3 color = mix(uBaseColor, uTipColor, pow(vProgress, 0.55));
     color += uGlowColor * (0.2 + 0.4 * (1.0 - vProgress) + vNoise * 0.05);
-    gl_FragColor = vec4(color, alpha * 0.9);
+    gl_FragColor = vec4(color, alpha * 0.9 * uForestIntensity);
     if (gl_FragColor.a < 0.02) discard;
   }
 `;
@@ -227,7 +228,12 @@ class FiberForestBackground {
       uWaveAmp: { value: 0.8 },
       uVerticalScroll: { value: 0 },
       uVerticalWrap: { value: this.options.verticalWrap },
+      uForestIntensity: { value: 1.0 },
     };
+
+    this.forestIntensity = 1.0;
+    this.targetForestIntensity = 1.0;
+    this.forestIntensityRate = 0;
 
     this.tunnelUniforms = {
       uTime: this.uniforms.uTime,
@@ -419,6 +425,18 @@ class FiberForestBackground {
     this.renderer.setClearColor(targetColor);
   }
 
+  setForestIntensity(target, durationMs = 0) {
+    const clamped = Math.max(0, Math.min(1, target));
+    this.targetForestIntensity = clamped;
+    if (durationMs <= 0) {
+      this.forestIntensity = clamped;
+      this.uniforms.uForestIntensity.value = clamped;
+      this.forestIntensityRate = 0;
+    } else {
+      this.forestIntensityRate = Math.abs(clamped - this.forestIntensity) / (durationMs / 1000);
+    }
+  }
+
   setPalette({ base, tip, glow } = {}) {
     if (base !== undefined) this.uniforms.uBaseColor.value.set(base);
     if (tip !== undefined) this.uniforms.uTipColor.value.set(tip);
@@ -427,6 +445,17 @@ class FiberForestBackground {
 
   update(delta = 0) {
     if (!this.enabled) return;
+
+    if (this.forestIntensityRate > 0) {
+      const step = delta * this.forestIntensityRate;
+      if (this.forestIntensity < this.targetForestIntensity) {
+        this.forestIntensity = Math.min(this.forestIntensity + step, this.targetForestIntensity);
+      } else {
+        this.forestIntensity = Math.max(this.forestIntensity - step, this.targetForestIntensity);
+      }
+      this.uniforms.uForestIntensity.value = this.forestIntensity;
+      if (this.forestIntensity === this.targetForestIntensity) this.forestIntensityRate = 0;
+    }
 
     if (this.speedup) {
       this.speedupAmount = Math.min(

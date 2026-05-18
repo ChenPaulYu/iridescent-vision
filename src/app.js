@@ -165,9 +165,13 @@ class IridescentVisionApp {
           this.softVolume = undefined;
         }
         if (this.gravity) this.gravity.enable();
-        if (this.background) this.background.direction = 'up';
+        if (this.background) {
+          this.background.direction = 'up';
+          this.background.setForestIntensity(0.18, 3500);
+        }
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(0.55, 4000);
+          this.cosmicDome.setTapestryIntensity(0.9, 3000);
         }
         bumpFlash();
       }, 29.5);
@@ -232,6 +236,7 @@ class IridescentVisionApp {
           this.cosmicDome.setIntensity(1.0, 2500);
           this.cosmicDome.bloomYantra(1500);
           this.cosmicDome.setMantraIntensity(0.7, 4000);
+          this.cosmicDome.setTapestryIntensity(0, 2500);
         }
         this.tweenOrnament({ flow: 1.0, thirdEye: 1.0, iridescentShift: 1.0 }, 1500, 'easeOutQuart');
         if (this.prayerBeads) this.prayerBeads.setIntensity(1.0, 1800);

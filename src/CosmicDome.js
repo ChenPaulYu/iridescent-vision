@@ -78,6 +78,62 @@ const yantraVertexShader = /* glsl */`
 
 const astrolabeVertexShader = yantraVertexShader;
 
+const tapestryVertexShader = yantraVertexShader;
+
+const tapestryFragmentShader = /* glsl */`
+  uniform float uTime;
+  uniform float uIntensity;
+  uniform vec3 uWarpColor;
+  uniform vec3 uWeftColor;
+  uniform vec3 uGlowColor;
+  varying vec2 vUv;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  void main() {
+    // Tile across surface. Warp = vertical threads, weft = horizontal.
+    vec2 p = vUv * vec2(34.0, 22.0);
+    vec2 cell = floor(p);
+    vec2 inCell = fract(p);
+
+    // Slow drift so the weave breathes.
+    float drift = uTime * 0.05;
+    vec2 jitter = vec2(sin(cell.y * 1.7 + drift), cos(cell.x * 1.3 + drift)) * 0.04;
+    inCell += jitter;
+
+    // Warp + weft thread profiles (narrow gaussian-ish bands).
+    float warpBand = exp(-pow((inCell.x - 0.5) * 6.0, 2.0));
+    float weftBand = exp(-pow((inCell.y - 0.5) * 6.0, 2.0));
+
+    // Over / under interleave so they read as woven.
+    bool warpOver = mod(cell.x + cell.y, 2.0) < 0.5;
+    float warpLayer = warpBand * (warpOver ? 1.0 : 0.55);
+    float weftLayer = weftBand * (warpOver ? 0.55 : 1.0);
+
+    // Per-thread variation so the cloth isn't uniform.
+    float warpHue = hash(vec2(cell.x, 0.0)) * 0.4 - 0.2;
+    float weftHue = hash(vec2(0.0, cell.y)) * 0.4 - 0.2;
+    vec3 warp = uWarpColor * (1.0 + warpHue);
+    vec3 weft = uWeftColor * (1.0 + weftHue);
+
+    vec3 col = warp * warpLayer + weft * weftLayer;
+
+    // Soft glow at thread intersections.
+    float crossPoint = warpBand * weftBand;
+    col += uGlowColor * crossPoint * 0.6;
+
+    // Edge fade so it doesn't look like a flat poster.
+    vec2 centered = vUv - 0.5;
+    float radial = 1.0 - smoothstep(0.32, 0.5, length(centered));
+
+    float alpha = (warpLayer + weftLayer + crossPoint * 0.4) * uIntensity * radial;
+    if (alpha < 0.01) discard;
+    gl_FragColor = vec4(col * uIntensity * radial, alpha * 0.55);
+  }
+`;
+
 const mantraVertexShader = yantraVertexShader;
 
 const mantraFragmentShader = /* glsl */`
@@ -259,6 +315,8 @@ class CosmicDome {
         astrolabeDistance: -55,
         mantraSize: 110,
         mantraDistance: -38,
+        tapestrySize: 95,
+        tapestryDistance: -18,
         burstCapacity: 600,
         burstDefaultLifetime: 4.5,
       },
@@ -287,6 +345,10 @@ class CosmicDome {
     this.mantraIntensity = 0;
     this.targetMantraIntensity = 0;
     this.mantraIntensityRate = 0;
+
+    this.tapestryIntensity = 0;
+    this.targetTapestryIntensity = 0;
+    this.tapestryIntensityRate = 0;
 
     this.resonanceMode = 'idle';
     this.rotationOffset = 0;
@@ -320,19 +382,47 @@ class CosmicDome {
       uGoldColor: { value: new THREE.Color(this.options.goldColor) },
     };
 
+    this.tapestryUniforms = {
+      uTime: this.uniforms.uTime,
+      uIntensity: { value: 0 },
+      uWarpColor: { value: new THREE.Color(this.options.goldColor) },
+      uWeftColor: { value: new THREE.Color('#9d80e0') },
+      uGlowColor: { value: this.uniforms.uGlowColor.value },
+    };
+
     this.dustPoints = this.createDustSystem();
     this.yantraMesh = this.createYantra();
     this.astrolabeMesh = this.createAstrolabe();
     this.mantraMesh = this.createMantra();
+    this.tapestryMesh = this.createTapestry();
     this.burstPoints = this.createBurstPool();
     this.group = new THREE.Group();
     this.group.renderOrder = -20;
     this.group.add(this.dustPoints);
     this.group.add(this.astrolabeMesh);
+    this.group.add(this.tapestryMesh);
     this.group.add(this.mantraMesh);
     this.group.add(this.yantraMesh);
     this.group.add(this.burstPoints);
     this.group.visible = false;
+  }
+
+  createTapestry() {
+    const geom = new THREE.PlaneGeometry(this.options.tapestrySize, this.options.tapestrySize);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: this.tapestryUniforms,
+      vertexShader: tapestryVertexShader,
+      fragmentShader: tapestryFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(0, 0, this.options.tapestryDistance);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = -17;
+    return mesh;
   }
 
   createBurstPool() {
@@ -476,12 +566,17 @@ class CosmicDome {
 
   setPalette({ base, tip, glow, gold } = {}) {
     if (base !== undefined) this.uniforms.uBaseColor.value.set(base);
-    if (glow !== undefined) this.uniforms.uGlowColor.value.set(glow);
+    if (glow !== undefined) {
+      this.uniforms.uGlowColor.value.set(glow);
+      this.tapestryUniforms.uGlowColor.value.set(glow);
+    }
     if (gold !== undefined) {
       this.yantraUniforms.uGoldColor.value.set(gold);
       this.astrolabeUniforms.uGoldColor.value.set(gold);
       this.mantraUniforms.uGoldColor.value.set(gold);
+      this.tapestryUniforms.uWarpColor.value.set(gold);
     }
+    if (tip !== undefined) this.tapestryUniforms.uWeftColor.value.set(tip);
   }
 
   setIntensity(target, durationMs = 0) {
@@ -539,7 +634,20 @@ class CosmicDome {
     this.setMantraIntensity(0, durationMs * 0.7);
     this.collapseYantra(durationMs * 0.6);
     this.setAstrolabeIntensity(0, durationMs);
+    this.setTapestryIntensity(0, durationMs * 0.5);
     this.setIntensity(0.45, durationMs * 1.2);
+  }
+
+  setTapestryIntensity(target, durationMs = 0) {
+    const clamped = Math.max(0, Math.min(1, target));
+    this.targetTapestryIntensity = clamped;
+    if (durationMs <= 0) {
+      this.tapestryIntensity = clamped;
+      this.tapestryUniforms.uIntensity.value = clamped;
+      this.tapestryIntensityRate = 0;
+    } else {
+      this.tapestryIntensityRate = Math.abs(clamped - this.tapestryIntensity) / (durationMs / 1000);
+    }
   }
 
   setMantraIntensity(target, durationMs = 0) {
@@ -609,6 +717,7 @@ class CosmicDome {
     this.yantraMesh.visible = this.bloomAmount > 0.001;
     this.astrolabeMesh.visible = this.astrolabeIntensity > 0.001;
     this.mantraMesh.visible = this.mantraIntensity > 0.001;
+    this.tapestryMesh.visible = this.tapestryIntensity > 0.001;
 
     if (this.resonanceMode === 'shake') {
       this.shakePhase += delta * 1.7;
@@ -721,6 +830,17 @@ class CosmicDome {
       this.mantraUniforms.uIntensity.value = this.mantraIntensity;
       if (this.mantraIntensity === this.targetMantraIntensity) this.mantraIntensityRate = 0;
     }
+
+    if (this.tapestryIntensityRate > 0) {
+      const step = delta * this.tapestryIntensityRate;
+      if (this.tapestryIntensity < this.targetTapestryIntensity) {
+        this.tapestryIntensity = Math.min(this.tapestryIntensity + step, this.targetTapestryIntensity);
+      } else {
+        this.tapestryIntensity = Math.max(this.tapestryIntensity - step, this.targetTapestryIntensity);
+      }
+      this.tapestryUniforms.uIntensity.value = this.tapestryIntensity;
+      if (this.tapestryIntensity === this.targetTapestryIntensity) this.tapestryIntensityRate = 0;
+    }
   }
 
   dispose() {
@@ -735,6 +855,8 @@ class CosmicDome {
     this.astrolabeMesh.material.dispose();
     this.mantraMesh.geometry.dispose();
     this.mantraMesh.material.dispose();
+    this.tapestryMesh.geometry.dispose();
+    this.tapestryMesh.material.dispose();
     this.burstPoints.geometry.dispose();
     this.burstPoints.material.dispose();
   }
