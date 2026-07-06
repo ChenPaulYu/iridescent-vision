@@ -200,9 +200,11 @@ const tunnelFragmentShader = /* glsl */`
   varying float vRadial;
 
   float fbm(vec2 p) {
+    // 3 octaves — the 4th was invisible under the silk layer and this
+    // runs on a full-screen backside cylinder.
     float a = 0.5;
     float f = 0.0;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
       f += a * sin(p.x) * cos(p.y);
       p *= 1.8;
       a *= 0.5;

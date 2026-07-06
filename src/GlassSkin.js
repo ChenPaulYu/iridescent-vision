@@ -37,10 +37,15 @@ var GlassSkin = function(scene, mesh) {
     }
     
     
+    let cubeFrame = 0;
     this.update = (renderer, camera) => {
         if (!enabled) return;
+        // The refraction source is slow fog — refreshing the cube map
+        // every other frame is invisible and halves six full scene
+        // re-renders per frame.
+        cubeFrame = (cubeFrame + 1) % 2;
+        if (cubeFrame !== 0) return;
         this.mesh.visible = false;
-        //let disVec = this.mesh//this.mesh.position.clone().add(camera.position.clone().multiplyScalar(0.1))
         cubeCamera.position.copy( camera.position );
 
         cubeCamera.update( renderer, this.scene );

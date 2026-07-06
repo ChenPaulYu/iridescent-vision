@@ -1197,6 +1197,9 @@ class IridescentVisionApp {
   testTransparent(time) {
     if (this.background) {
       this.background.disable('#000000');
+      // Free the fiber forest's GPU buffers for good — it never
+      // returns after the glass phase begins.
+      this.background.dispose();
       this.background = undefined;
     }
     if (this.directionalLight) this.directionalLight.intensity = 0;

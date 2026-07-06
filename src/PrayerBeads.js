@@ -91,6 +91,9 @@ class PrayerBeads {
 
   update(delta, center) {
     if (!this.enabled) return;
+    // No draw calls while the beads are faded out (they idle at
+    // intensity 0 through Acts 1-2).
+    this.group.visible = this.intensity > 0.001 || this.targetIntensity > 0.001;
     this.time += delta;
 
     if (this.intensityRate > 0) {
