@@ -8,13 +8,13 @@ import { GlassSkin } from './GlassSkin';
 import { SoftVolume } from './SoftVolume';
 import { FiberForestBackground } from './FiberForestBackground';
 import { CosmicDome } from './CosmicDome';
+import { EnvironmentDome } from './EnvironmentDome';
 import { PrayerBeads } from './PrayerBeads';
 import { HeadMove } from './HeadMove';
 import { Activity } from './Activity';
 import { Gravity } from './Gravity';
 import { SoundHandler } from './SoundHandler';
 import { TextLayer } from './TextLayer';
-import domeImage from './images/gradient.jpeg';
 import { Updater } from './core/Updater';
 import { EventBus } from './core/EventBus';
 import { PostPipeline } from './core/PostPipeline';
@@ -37,6 +37,7 @@ class IridescentVisionApp {
     this.softVolume = null;
     this.background = null;
     this.cosmicDome = null;
+    this.envDome = null;
     this.prayerBeads = null;
     this.goldFlakeState = { active: false, rate: 0, timer: 0 };
     this.gravity = null;
@@ -51,8 +52,6 @@ class IridescentVisionApp {
     this.managerLoad = 0;
     this.soundLoad = 0;
     this.totalLoad = 45;
-
-    this.bgTexture = null;
 
     this.updater = new Updater();
     this.events = new EventBus();
@@ -102,6 +101,7 @@ class IridescentVisionApp {
     this.post = new PostPipeline(this.renderer, this.scene, this.camera);
 
     this.background = new FiberForestBackground(this.renderer, this.scene);
+    this.envDome = new EnvironmentDome(this.scene);
     this.cosmicDome = new CosmicDome(this.renderer, this.scene);
     this.cosmicDome.enable();
     this.cosmicDome.setIntensity(0.25);
@@ -112,6 +112,7 @@ class IridescentVisionApp {
 
     this.palette = new PaletteCoordinator(this.palettes.awakening);
     this.palette.register(this.background);
+    this.palette.register(this.envDome);
     this.palette.register(this.cosmicDome);
     this.palette.register(this.prayerBeads);
     this.palette.register({
@@ -236,6 +237,10 @@ class IridescentVisionApp {
         if (this.gravity) this.gravity.disable();
         this.gravity = null;
         this.testTransparent(2300);
+        if (this.envDome) {
+          this.envDome.enable();
+          this.envDome.setIntensity(0.5, 3200);
+        }
         this.headmove = new HeadMove(this.renderer, this.camera, this.scene, this.face, this.mesh, this.controls);
         this.headmove.enable(this.camera, this.face, this.mesh);
         this.setBackgroundPalette('orbit');
@@ -261,9 +266,7 @@ class IridescentVisionApp {
           count += 1;
           if (count > 2) clearInterval(interval);
         }, 1850);
-        const loader = new THREE.TextureLoader();
-        this.bgTexture = loader.load(domeImage);
-        this.scene.background = this.bgTexture;
+        if (this.envDome) this.envDome.setIntensity(0.85, 2500);
 
         this.setHeadmoveMode('shake');
       }, 1, 38.4);
@@ -308,9 +311,7 @@ class IridescentVisionApp {
     const finalHeadUp = () => {
       this.soundHandler.schedule(() => {
         this.flash(true);
-        const loader = new THREE.TextureLoader();
-        this.bgTexture = loader.load(domeImage);
-        this.scene.background = this.bgTexture;
+        if (this.envDome) this.envDome.setIntensity(1.05, 2200);
         this.setHeadmoveMode('up');
       }, 3, 33);
       afterFlake();
@@ -342,6 +343,7 @@ class IridescentVisionApp {
         }
         if (this.mesh) this.mesh.visible = false;
         if (this.face) this.face.visible = false;
+        if (this.envDome) this.envDome.disable();
         if (this.cosmicDome) this.cosmicDome.setIntensity(0.15, 3000);
         if (this.prayerBeads) this.prayerBeads.setIntensity(0, 1500);
         this.activity = new Activity(this.camera, this.scene, this.controls);
@@ -733,6 +735,7 @@ class IridescentVisionApp {
       }
     }
     if (this.cosmicDome) this.cosmicDome.update(delta);
+    if (this.envDome) this.envDome.update(delta, this.camera);
     if (this.ornamentUniforms) {
       this.ornamentUniforms.uTime.value += delta;
       if (this.ornamentMesh) {
@@ -979,6 +982,7 @@ class IridescentVisionApp {
   backgroundFlash(color, visible) {
     if (this.face) this.face.visible = visible;
     if (this.mesh) this.mesh.visible = visible;
+    const domeWasVisible = this.envDome && this.envDome.enabled && this.envDome.mesh.visible;
     if (!visible) {
       if (Math.floor(Math.random() * 2)) {
         this.renderer.setClearColor('#1a0f24');
@@ -986,13 +990,15 @@ class IridescentVisionApp {
         this.renderer.setClearColor('#311a47');
       }
     } else {
-      this.scene.background = undefined;
+      // Blink the dome off for one beat so the flash reads as a burst
+      // of darkness behind the goddess (was: scene.background swap).
+      if (domeWasVisible) this.envDome.mesh.visible = false;
       this.renderer.setClearColor('#311a47');
     }
 
     setTimeout(() => {
-      if (visible) {
-        this.scene.background = this.bgTexture;
+      if (visible && domeWasVisible) {
+        this.envDome.mesh.visible = true;
       }
       this.renderer.setClearColor(color);
       if (this.face) this.face.visible = true;

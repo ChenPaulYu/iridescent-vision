@@ -17,7 +17,9 @@ var GlassSkin = function(scene, mesh) {
             this.uuid.push(child.uuid)
         } 
 
-        cubeCamera = new THREE.CubeCamera(1, 100, 256); 
+        // Far plane must reach past the EnvironmentDome (r=300) so the
+        // glass refracts the dome's fog instead of empty clear color.
+        cubeCamera = new THREE.CubeCamera(0.5, 900, 256);
         this.scene.add(cubeCamera);
     
         cubeCamera.renderTarget.texture.mapping = THREE.CubeRefractionMapping;
