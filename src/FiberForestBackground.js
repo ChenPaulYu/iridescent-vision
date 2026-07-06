@@ -216,13 +216,13 @@ const tunnelFragmentShader = /* glsl */`
 
     float depthFade = smoothstep(0.05, 0.35, uv.y) * (1.0 - uv.y);
     float edge = smoothstep(0.45, 1.0, vRadial);
-    float alpha = fiber * edge * depthFade * (0.45 + 0.85 * silk);
-    alpha += silk * silk * edge * depthFade * 0.10;
+    float alpha = fiber * edge * depthFade * (0.40 + 0.60 * silk);
+    alpha += silk * silk * edge * depthFade * 0.05;
     if (alpha < 0.01) discard;
 
     vec3 base = mix(uBaseColor, uTipColor, pow(uv.y, 0.45));
-    vec3 color = base + uGlowColor * fiber * edge * (0.7 + 0.8 * silk);
-    color += uGlowColor * silk * silk * edge * 0.28;
+    vec3 color = base + uGlowColor * fiber * edge * (0.60 + 0.60 * silk);
+    color += uGlowColor * silk * silk * edge * 0.18;
     color *= mix(0.4, 1.2, edge);
 
     gl_FragColor = vec4(color, alpha);

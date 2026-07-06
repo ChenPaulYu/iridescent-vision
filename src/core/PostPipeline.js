@@ -111,9 +111,10 @@ class PostPipeline {
     // into a white column.
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(size.x * 0.5, size.y * 0.5),
-      0.45, // strength
+      0.40, // strength
       0.50, // radius
-      0.58 // threshold
+      0.72 // threshold — only true highlights bloom; dense additive
+      // layers (fibers, tapestry) stay below the knee
     );
 
     this.gradePass = new ShaderPass(GradeShader);

@@ -185,7 +185,7 @@ class IridescentVisionApp {
         }
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(0.55, 4000);
-          this.cosmicDome.setTapestryIntensity(0.9, 3000);
+          this.cosmicDome.setTapestryIntensity(0.5, 3000);
         }
         bumpFlash();
       }, 29.5);
@@ -272,7 +272,7 @@ class IridescentVisionApp {
           count += 1;
           if (count > 2) clearInterval(interval);
         }, 1850);
-        if (this.envDome) this.envDome.setIntensity(0.85, 2500);
+        if (this.envDome) this.envDome.setIntensity(0.62, 2500);
 
         this.setHeadmoveMode('shake');
       }, 1, 38.4);
@@ -317,7 +317,7 @@ class IridescentVisionApp {
     const finalHeadUp = () => {
       this.soundHandler.schedule(() => {
         this.flash(true);
-        if (this.envDome) this.envDome.setIntensity(1.05, 2200);
+        if (this.envDome) this.envDome.setIntensity(0.78, 2200);
         this.setHeadmoveMode('up');
       }, 3, 33);
       afterFlake();

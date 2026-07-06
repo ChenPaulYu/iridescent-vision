@@ -47,12 +47,15 @@ const domeFragmentShader = /* glsl */`
     // Luminance ramp onto the shared palette: shadows stay base,
     // midtones roll to tip, only the brightest fog pools reach glow.
     vec3 color = mix(uBaseColor, uTipColor, smoothstep(0.04, 0.5, lum));
-    color = mix(color, uGlowColor, smoothstep(0.42, 0.95, lum) * 0.85);
+    color = mix(color, uGlowColor, smoothstep(0.42, 0.95, lum) * 0.6);
 
-    // Slight vertical shaping: keep the zenith darker than the horizon
-    // regardless of texture content (camera mostly looks up).
+    // Vertical shaping: zenith darker than the horizon (camera mostly
+    // looks up), and the nadir fades too — HeadMove sends the camera
+    // diving, and an unshaded lower hemisphere whites the frame out.
     float zenith = smoothstep(0.15, 0.95, vUv.y);
     color *= mix(1.0, 0.45, zenith * 0.8);
+    float nadir = smoothstep(0.45, 0.05, vUv.y);
+    color *= mix(1.0, 0.35, nadir);
 
     color *= uIntensity * (0.85 + 0.15 * lum);
 
