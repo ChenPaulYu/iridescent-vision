@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import {Particle} from './Particle';
 import { Vector3, Mesh } from 'three/build/three.module';
-import pattern from './images/circuit_pattern.png'
 import * as dat from 'dat.gui';
 import pullSound from './sounds/mask_pull.mp3';
 import releaseSound from './sounds/mask_release.mp3';
@@ -216,39 +215,13 @@ var SoftVolume = function(scene, mesh, isGltf, soundHandler) {
     }
 
     let changeTexture = () => {
-        var textureLoader = new THREE.TextureLoader();
-        var texture = textureLoader.load(pattern);
-
-        // let MeshMaterial = new THREE.MeshPhongMaterial( {
-        //     // color: 0x624eba,
-        //     color: 0xddbf72,
-        //     // emissive: 0xc325e,
-        //     emissive: 0x66561f,
-        //     // specular: 0x441833,
-        //     specular: 0x211f23,
-        //     map: texture,
-        //     side: THREE.DoubleSide,
-        //     alphaTest: 0.7,
-        //     shininess: 0
-            
-        // } );
-        // Crack-net look kept (it IS the Awakening identity), but the
-        // khaki/olive palette violated the iridescent rule — re-tinted
-        // to deep plum body with a lavender inner glow (style-anchor).
-        let MeshMaterial = new THREE.MeshPhongMaterial( {
-            color: 0x241833,
-            emissive: 0x54428a,
-            specular: 0x9d80e0,
-            map: texture,
-            side: THREE.DoubleSide,
-            alphaTest: 0.7,
-            shininess: 18
-
-        } );
-        
-        oriMaterial = this.mesh.material;
-        this.mesh.material = MeshMaterial;
-        
+        // Swap to the rubber-gel matcap material (built in app.js,
+        // docs/asset-brief Asset 2A) instead of the old circuit-pattern
+        // crackle — Awakening's touchable, embodied material.
+        if (mesh.userData.rubberMaterial) {
+            oriMaterial = this.mesh.material;
+            this.mesh.material = mesh.userData.rubberMaterial;
+        }
     }
 
     let updateMeshPos = () => {

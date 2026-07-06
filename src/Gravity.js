@@ -203,11 +203,11 @@ var Gravity = function (scene, mesh, soundHandler) {
 
     
     let changeTexture = () => {
-        // Swap to the liquid-chrome matcap material (built in app.js,
-        // docs/asset-brief Asset 2B) instead of the old plain
-        // white-metal — the tool-age goddess hardens into chrome.
-        if (mesh.userData.chromeMaterial) {
-            this.mesh.material = mesh.userData.chromeMaterial;
+        // Swap to the procedural magnetic-field material (built in
+        // app.js) instead of the old plain white-metal — tool-making
+        // energy magnetizes the goddess, not plates her in chrome.
+        if (mesh.userData.magnetMaterial) {
+            this.mesh.material = mesh.userData.magnetMaterial;
         }
     }
 

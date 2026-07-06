@@ -29,7 +29,6 @@ import { Gravity } from './Gravity';
 import { SoundHandler } from './SoundHandler';
 import { TextLayer } from './TextLayer';
 import matcapRubberPath from './textures/generated/matcap-rubber.jpg';
-import matcapChromePath from './textures/generated/matcap-chrome.jpg';
 import surfaceHeightPath from './textures/generated/surface-height.jpg';
 import posterPath from './images/poster.jpg';
 import { Updater } from './core/Updater';
@@ -204,9 +203,9 @@ class IridescentVisionApp {
 
       this.soundHandler.scheduleToneTime(() => {
         this.cinematicFlash(900);
-        // Material narrative beat: soft rubber body hardens into liquid
-        // chrome behind the flash (see docs/asset-brief.md, Asset 2).
-        this.tweenMatcapBlend(1.0, 1600, 'easeOutQuart');
+        // Material narrative beat: soft rubber body magnetizes behind
+        // the flash — SoftVolume -> Gravity swaps mesh.material from
+        // rubberMaterial to magnetMaterial at this exact moment.
 
         if (this.softVolume) {
           this.softVolume.disable();
@@ -474,92 +473,22 @@ class IridescentVisionApp {
     });
     const rimColor = new THREE.Color('#d8b5ff');
 
-    const texLoader = new THREE.TextureLoader();
-    const matcapRubber = texLoader.load(matcapRubberPath);
-    const matcapChrome = texLoader.load(matcapChromePath);
-    const surfaceTex = texLoader.load(surfaceHeightPath);
-    surfaceTex.wrapS = THREE.RepeatWrapping;
-    surfaceTex.wrapT = THREE.RepeatWrapping;
-
-    // Kept outside onBeforeCompile so tweens can mutate values before
-    // and after the program compiles. The matcap IS the mask's material
-    // narrative: rubber-gel (Awakening) -> liquid chrome (Ascension),
-    // cross-faded at the soft2Gravity cinematic flash.
-    const matcapUniforms = {
-      uMatcapRubber: { value: matcapRubber },
-      uMatcapChrome: { value: matcapChrome },
-      uSurfaceTex: { value: surfaceTex },
-      uMatcapBlend: { value: 0.0 },
-      uMatcapMix: { value: 0.78 },
-      uSurfaceScale: { value: 0.16 },
-      uSurfaceAmount: { value: 0.05 },
-    };
-    this.matcapUniforms = matcapUniforms;
-
+    // NOTE: this base material is essentially never seen on screen.
+    // SoftVolume/Gravity/GlassSkin each swap `mesh.material` wholesale
+    // for their beat and restore this one only for a same-tick gap in
+    // between (see docs/vision.md "mask material relay"). Real material
+    // identity per beat lives in the dedicated materials built below,
+    // which SoftVolume/Gravity actually assign — keep this one simple.
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uRimColor = { value: rimColor.clone() };
       shader.uniforms.uRimStrength = { value: 0.7 };
       shader.uniforms.uRimExponent = { value: 2.3 };
-      Object.assign(shader.uniforms, matcapUniforms);
-
-      shader.vertexShader = `
-        varying vec3 vMaskPos;
-        varying vec3 vMaskNormal;
-      ` + shader.vertexShader.replace(
-        '#include <begin_vertex>',
-        `#include <begin_vertex>
-         vMaskPos = position;
-         vMaskNormal = normal;`
-      );
-
-      shader.fragmentShader = `
-        uniform sampler2D uMatcapRubber;
-        uniform sampler2D uMatcapChrome;
-        uniform sampler2D uSurfaceTex;
-        uniform float uMatcapBlend;
-        uniform float uMatcapMix;
-        uniform float uSurfaceScale;
-        uniform float uSurfaceAmount;
-        varying vec3 vMaskPos;
-        varying vec3 vMaskNormal;
-
-        // Tri-planar height sample: mask3 has no UVs, so the generated
-        // surface map is projected along the object axes and blended by
-        // the normal. Feeds micro-relief into the matcap lookup.
-        float maskSurfaceHeight(vec3 p, vec3 n) {
-          vec3 an = abs(n);
-          an /= (an.x + an.y + an.z + 0.0001);
-          float hx = texture2D(uSurfaceTex, p.yz * uSurfaceScale).r;
-          float hy = texture2D(uSurfaceTex, p.xz * uSurfaceScale).r;
-          float hz = texture2D(uSurfaceTex, p.xy * uSurfaceScale).r;
-          return hx * an.x + hy * an.y + hz * an.z;
-        }
-      ` + shader.fragmentShader.replace(
+      shader.fragmentShader = shader.fragmentShader.replace(
         'vec4 diffuseColor = vec4( diffuse, opacity );',
         `float rimDot = clamp(dot(normalize(vNormal), normalize(-vViewPosition)), 0.0, 1.0);
          float rim = pow(1.0 - rimDot, uRimExponent);
          vec3 rimCol = uRimColor * rim * uRimStrength;
          vec4 diffuseColor = vec4(diffuse + rimCol, opacity);`
-      ).replace(
-        'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-        `float surfH = maskSurfaceHeight(vMaskPos, normalize(vMaskNormal));
-         vec3 mcViewDir = normalize( vViewPosition );
-         vec3 mcX = normalize( vec3( mcViewDir.z, 0.0, - mcViewDir.x ) );
-         vec3 mcY = cross( mcViewDir, mcX );
-         vec2 mcUv = vec2( dot( mcX, normal ), dot( mcY, normal ) ) * 0.495 + 0.5;
-         mcUv += (surfH - 0.5) * uSurfaceAmount;
-         // Rubber matcap is the darkest asset by design (docs/asset-brief);
-         // on the near-black stage it needs gain to read as plum-lavender.
-         vec3 mcRub = texture2D(uMatcapRubber, mcUv).rgb * 1.55;
-         vec3 mcChr = texture2D(uMatcapChrome, mcUv).rgb;
-         vec3 mcCol = mix(mcRub, mcChr, uMatcapBlend);
-         // Scale the matcap by scene lighting so MouseLight's spotlight
-         // still sculpts the face during Awakening.
-         float mcSceneLum = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
-         vec3 mcLit = mcCol * clamp(0.45 + mcSceneLum * 1.1, 0.0, 1.0);
-         mcLit *= 0.9 + 0.2 * surfH;
-         outgoingLight = mix(outgoingLight, mcLit, uMatcapMix);
-         gl_FragColor = vec4( outgoingLight, diffuseColor.a );`
       );
       material.userData.shader = shader;
     };
@@ -570,24 +499,37 @@ class IridescentVisionApp {
     };
     mesh.material = material;
     this.maskMaterial = material;
-    mesh.userData.chromeMaterial = this.buildChromeMatcapMaterial(
-      matcapChrome, surfaceTex
-    );
+
+    const texLoader = new THREE.TextureLoader();
+    const matcapRubber = texLoader.load(matcapRubberPath);
+    const surfaceTex = texLoader.load(surfaceHeightPath);
+    surfaceTex.wrapS = THREE.RepeatWrapping;
+    surfaceTex.wrapT = THREE.RepeatWrapping;
+
+    // Rubber-gel body for Awakening (SoftVolume swaps this in) — the
+    // goddess's touchable, embodied material (docs/asset-brief Asset 2A).
+    mesh.userData.rubberMaterial = this.buildMatcapMaterial(matcapRubber, surfaceTex, { gain: 1.55 });
+    // Magnetic field for Ascension (Gravity swaps this in) — tool-making
+    // energy magnetizes her, field lines converging pole to pole, not a
+    // mirror-chrome surface (see project memory: scene 2 is magnet, not metal).
+    mesh.userData.magnetMaterial = this.buildMagnetFieldMaterial(mesh, surfaceTex);
+
     this.attachOrnamentShell(mesh);
     if (this.palette) this.palette.broadcast();
   }
 
-  // Dedicated liquid-chrome matcap material for the Gravity beat.
-  // A plain ShaderMaterial (no three lighting pipeline) — deterministic
-  // and cheap; Gravity swaps it in at the soft2Gravity flash and swaps
-  // back before GlassSkin takes over.
-  buildChromeMatcapMaterial(matcapTexture, surfaceTexture) {
+  // Shared matcap-sampling material (no three lighting pipeline —
+  // deterministic and cheap): used for Awakening's rubber body.
+  // SoftVolume swaps it in on enable() and restores the base material
+  // on disable().
+  buildMatcapMaterial(matcapTexture, surfaceTexture, { gain = 1.0 } = {}) {
     return new THREE.ShaderMaterial({
       uniforms: {
         uMatcap: { value: matcapTexture },
         uSurfaceTex: { value: surfaceTexture },
         uSurfaceScale: { value: 0.16 },
         uSurfaceAmount: { value: 0.05 },
+        uGain: { value: gain },
       },
       vertexShader: /* glsl */`
         varying vec3 vN;
@@ -606,6 +548,7 @@ class IridescentVisionApp {
         uniform sampler2D uSurfaceTex;
         uniform float uSurfaceScale;
         uniform float uSurfaceAmount;
+        uniform float uGain;
         varying vec3 vN;
         varying vec3 vV;
         varying vec3 vP;
@@ -627,7 +570,9 @@ class IridescentVisionApp {
           float h = surfaceHeight(vP, n);
           vec2 uv = vec2(dot(x, n), dot(y, n)) * 0.495 + 0.5;
           uv += (h - 0.5) * uSurfaceAmount;
-          vec3 col = texture2D(uMatcap, uv).rgb;
+          // Rubber matcap is the darkest asset by design (docs/asset-brief) —
+          // needs gain on the near-black stage to read as plum-lavender.
+          vec3 col = texture2D(uMatcap, uv).rgb * uGain;
           col *= 0.9 + 0.2 * h;
           gl_FragColor = vec4(col, 1.0);
         }
@@ -635,18 +580,77 @@ class IridescentVisionApp {
     });
   }
 
-  tweenMatcapBlend(target, durationMs = 1500, easingName = 'easeOutQuart') {
-    if (!this.matcapUniforms) return;
-    const uniform = this.matcapUniforms.uMatcapBlend;
-    const ease = getEasing(easingName);
-    const startValue = uniform.value;
-    const startTime = performance.now();
-    const tick = () => {
-      const t = Math.min((performance.now() - startTime) / durationMs, 1);
-      uniform.value = startValue + (target - startValue) * ease(t);
-      if (t < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
+  // Ascension's magnetic-field material: no image asset, a dipole field
+  // is procedural. Pole axis = mesh's local Y (crown to chin); field
+  // lines are meridian-like arcs that geometrically converge at both
+  // poles, brightened near the poles (higher field density) with a
+  // slow pole-to-pole pulse. Dark magnetite body underneath.
+  buildMagnetFieldMaterial(mesh, surfaceTexture) {
+    mesh.geometry.computeBoundingBox();
+    const bb = mesh.geometry.boundingBox;
+    const center = bb.getCenter(new THREE.Vector3());
+    const axisHalf = (bb.max.y - bb.min.y) / 2;
+
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uSurfaceTex: { value: surfaceTexture },
+        uSurfaceScale: { value: 0.16 },
+        uAxisCenter: { value: center },
+        uAxisHalf: { value: axisHalf },
+        uBaseColor: { value: new THREE.Color('#121022') },
+        uLineColor: { value: new THREE.Color('#c9b8ff') },
+        uLineCount: { value: 11.0 },
+        uTime: { value: 0 },
+      },
+      vertexShader: /* glsl */`
+        varying vec3 vN;
+        varying vec3 vP;
+        void main() {
+          vN = normalize(normalMatrix * normal);
+          vP = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform sampler2D uSurfaceTex;
+        uniform float uSurfaceScale;
+        uniform vec3 uAxisCenter;
+        uniform float uAxisHalf;
+        uniform vec3 uBaseColor;
+        uniform vec3 uLineColor;
+        uniform float uLineCount;
+        uniform float uTime;
+        varying vec3 vN;
+        varying vec3 vP;
+
+        void main() {
+          vec3 rel = vP - uAxisCenter;
+          float t = clamp(rel.y / uAxisHalf, -1.0, 1.0);
+          float theta = acos(t);
+          float azimuth = atan(rel.z, rel.x);
+
+          // Meridian arcs converge geometrically at both poles; a few
+          // bold lines (not fine fractal lace — legibility at distance).
+          float linePattern = pow(max(0.0, cos(azimuth * uLineCount)), 32.0);
+
+          // Field density reads brighter near the poles, dim at the
+          // equator — physically the field a dipole actually produces.
+          float poleBoost = clamp(1.0 - sin(theta), 0.0, 1.0);
+
+          // Slow pulse of energy traveling pole-to-pole.
+          float flow = fract(theta / 3.14159265 * 2.0 - uTime * 0.1);
+          float pulse = smoothstep(0.0, 0.18, flow) * smoothstep(0.42, 0.18, flow);
+
+          float lineBrightness = linePattern * (0.3 + poleBoost * 0.85 + pulse * 0.5);
+
+          float h = texture2D(uSurfaceTex, rel.xy * uSurfaceScale).r;
+          vec3 base = uBaseColor * (0.82 + 0.3 * h);
+          vec3 color = base + uLineColor * lineBrightness;
+
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+    });
   }
 
   attachOrnamentShell(mesh) {
@@ -974,6 +978,9 @@ class IridescentVisionApp {
     }
     if (this.cosmicDome) this.cosmicDome.update(delta);
     if (this.envDome) this.envDome.update(delta, this.camera);
+    if (this.mesh && this.mesh.userData.magnetMaterial) {
+      this.mesh.userData.magnetMaterial.uniforms.uTime.value += delta;
+    }
     if (this.ornamentUniforms) {
       this.ornamentUniforms.uTime.value += delta;
       if (this.ornamentMesh) {
@@ -1044,21 +1051,22 @@ class IridescentVisionApp {
   }
 
   // Compile every shader program while the loading screen is still up,
-  // including the chrome matcap that otherwise compiles mid-flash at
-  // t=29.5 — the single worst jank moment of the piece.
+  // including the magnet-field material that otherwise compiles mid-
+  // flash at t=29.5 — the single worst jank moment of the piece.
   warmShaders() {
     if (this._shadersWarmed || !this.renderer || !this.camera || !this.mesh) return;
     this._shadersWarmed = true;
-    let warm = null;
-    const chrome = this.mesh.userData.chromeMaterial;
-    if (chrome) {
-      warm = new THREE.Mesh(new THREE.PlaneBufferGeometry(0.001, 0.001), chrome);
-      warm.frustumCulled = false;
-      this.scene.add(warm);
+    const warmMeshes = [];
+    const magnet = this.mesh.userData.magnetMaterial;
+    if (magnet) {
+      const m = new THREE.Mesh(new THREE.PlaneBufferGeometry(0.001, 0.001), magnet);
+      m.frustumCulled = false;
+      warmMeshes.push(m);
     }
+    warmMeshes.forEach((m) => this.scene.add(m));
     if (this.envDome) this.envDome.enable();
     this.renderer.compile(this.scene, this.camera);
-    if (warm) this.scene.remove(warm);
+    warmMeshes.forEach((m) => this.scene.remove(m));
   }
 
   soundOnProgress(loaded) {

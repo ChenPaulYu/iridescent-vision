@@ -118,13 +118,22 @@ her silhouette, so they can never cross the face).
   GlassSkin refracts it (cube camera far plane 900, MixOperation).
 - **Mask material relay** (important architecture fact): SoftVolume,
   Gravity and GlassSkin each swap `mesh.material` for their beat —
-  anything set on the base material only shows in the gaps. Current
-  relay: SoftVolume crack-net re-tinted to plum/lavender (Awakening) →
-  Gravity swaps in the dedicated liquid-chrome matcap ShaderMaterial
-  from `app.js:buildChromeMatcapMaterial` (Ascension) → GlassSkin cube
-  refraction (Orbit). Tri-planar surface height map breaks speculars in
-  both matcap paths. The rubber matcap (Asset 2A) lives on the resting
-  base material only — currently no beat exposes it.
+  the base material (built in `applyMaskMaterial`, rim shader only) is
+  essentially never seen, restored for at most a same-tick gap between
+  beats. Real material identity lives entirely in the materials each
+  mode swaps to. Current relay: SoftVolume swaps in the rubber-gel
+  matcap (`mesh.userData.rubberMaterial`, Asset 2A — Awakening's
+  touchable body) → Gravity swaps in the procedural magnet-field
+  material (`mesh.userData.magnetMaterial`, `app.js:buildMagnetFieldMaterial`
+  — Ascension: dark magnetite base, field-line arcs converging at both
+  poles of the mesh's local Y axis, brighter near the poles, slow
+  pole-to-pole pulse; no image asset, this is deliberate per artist
+  direction — scene 2 is a magnet, not chrome/metal) → GlassSkin cube
+  refraction (Orbit). Tri-planar surface height map feeds micro-relief
+  into both the rubber matcap and (as a subtle texture read) the magnet
+  material. The chrome matcap (Asset 2B, `matcap-chrome.jpg`) is no
+  longer wired to any beat — the asset file remains in
+  `src/textures/generated/` but is currently unused by the app.
 - **Generated textures** (`src/textures/generated/`, briefs + accepted
   candidates in `docs/asset-brief.md` / `docs/reference/`) — dome, two
   matcaps, height map, particle sprite (dust/burst/sparkles), silk veil
