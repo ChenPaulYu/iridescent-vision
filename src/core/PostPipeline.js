@@ -110,7 +110,7 @@ class PostPipeline {
     // below ~0.55 let the tunnel's stacked additive brightness snowball
     // into a white column.
     this.bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(size.x * 0.5, size.y * 0.5),
+      new THREE.Vector2(Math.min(size.x * 0.5, 640), Math.min(size.y * 0.5, 360)),
       0.40, // strength
       0.50, // radius
       0.72 // threshold — only true highlights bloom; dense additive
@@ -133,13 +133,44 @@ class PostPipeline {
       this.renderer.render(this._scene, this._camera);
       return;
     }
+    this._governQuality(delta);
     this.gradePass.uniforms.uTime.value += delta;
     this.composer.render(delta);
   }
 
+  // Adaptive quality: hold full retina sharpness while the GPU keeps
+  // up; if the smoothed frame rate sags (heavy beats stack physics +
+  // several full-screen transparent layers), step the pixel ratio down
+  // once — 2 -> 1.5 -> 1.25 — and never flap back up mid-piece.
+  _governQuality(delta) {
+    if (delta <= 0 || delta > 0.5) return;
+    const fps = 1 / delta;
+    this._fpsEma = this._fpsEma === undefined ? fps : this._fpsEma * 0.95 + fps * 0.05;
+    this._sagTime = this._fpsEma < 44 ? (this._sagTime || 0) + delta : 0;
+    // 4s of sustained sag before stepping down — beat transitions cause
+    // legitimate multi-second surges that must not cost quality forever.
+    if (this._sagTime > 4.0) {
+      const current = this.renderer.getPixelRatio();
+      const next = current > 1.5 ? 1.5 : current > 1.25 ? 1.25 : 0;
+      this._sagTime = 0;
+      this._fpsEma = 60;
+      if (next) {
+        this.renderer.setPixelRatio(next);
+        const size = this.renderer.getSize(new THREE.Vector2());
+        this.renderer.setSize(size.x, size.y);
+        this.composer.setPixelRatio(next);
+        this.setSize(size.x, size.y);
+      }
+    }
+  }
+
   setSize(width, height) {
     this.composer.setSize(width, height);
-    this.bloomPass.setSize(width * 0.5, height * 0.5);
+    // Bloom buffers are capped: past ~1280 wide the halo gains nothing
+    // but the blur passes scale quadratically.
+    const bw = Math.min(width * 0.5, 640);
+    const bh = Math.min(height * 0.5, 360);
+    this.bloomPass.setSize(bw, bh);
   }
 
   // One knob per beat: flash moments can briefly push bloom, quiet beats

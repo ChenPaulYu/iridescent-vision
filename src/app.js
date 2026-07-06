@@ -1029,7 +1029,26 @@ class IridescentVisionApp {
 
   handleLoading() {
     if (this.soundLoad + this.managerLoad < this.totalLoad) return;
+    this.warmShaders();
     if (this.textLayer) this.textLayer.addButton('CLICK');
+  }
+
+  // Compile every shader program while the loading screen is still up,
+  // including the chrome matcap that otherwise compiles mid-flash at
+  // t=29.5 — the single worst jank moment of the piece.
+  warmShaders() {
+    if (this._shadersWarmed || !this.renderer || !this.camera || !this.mesh) return;
+    this._shadersWarmed = true;
+    let warm = null;
+    const chrome = this.mesh.userData.chromeMaterial;
+    if (chrome) {
+      warm = new THREE.Mesh(new THREE.PlaneBufferGeometry(0.001, 0.001), chrome);
+      warm.frustumCulled = false;
+      this.scene.add(warm);
+    }
+    if (this.envDome) this.envDome.enable();
+    this.renderer.compile(this.scene, this.camera);
+    if (warm) this.scene.remove(warm);
   }
 
   soundOnProgress(loaded) {
