@@ -152,6 +152,31 @@ The mask's material progression **is** the narrative spine (style-anchor §2): s
 
 ---
 
+## Asset 6 — Opening ember (primordial seed)
+
+**Used for:** the loading/CTA screen's single glowing sphere — the seed of pure potential the goddess is dreamed from, before Awakening begins. Currently faked with the chrome matcap (Asset 2B) run through CSS multiply/brightness hacks; a purpose-built texture would look more intentional and let those CSS filters go away.
+
+**Spec:** square, 1024×1024. One sphere, centered, filling ~85–90% of frame, on pure black. Unlike Asset 2B (blown-out chrome), this one should be murky and self-contained — a designed small emblem, not a crop of a larger material study.
+
+**Prompt:**
+
+> A single sphere floating in pure black void, centered, filling most of the frame — a seed of primordial matter, not yet formed into anything. The surface is a murky, slowly swirling deep-violet and indigo nebula-like substance, dense and opaque at the edges, with a soft inner glow of pale lavender light seeping through cracks and thin veins across the surface, like magma glowing through dark rock, or bioluminescence deep underwater. A few faint threads of magenta and the barest hint of pale cyan thread through the violet — never dominant. No blown-out highlights, no mirror shine, no visible light source or studio reflection — the glow comes from within the sphere itself, softly, unevenly. Heavy analog film grain, soft focus at the rim fading into the black. Mysterious, ancient, dormant — like an egg or an ember waiting to ignite.
+>
+> **Negative:** orange, yellow, red, green, warm tones, mirror/chrome reflections, blown white highlights, visible studio lighting, hard edges, geometric patterns, text, watermark, second sphere, cropped sphere, planet/moon look (craters, continents), starfield.
+
+**Acceptance checklist:**
+
+- [ ] One sphere, centered, fully inside frame, pure black background (corners/edges must be flat black, same auto-reject reason as Asset 4).
+- [ ] Glow reads as *emitted from within* (uneven inner light through cracks/veins), not an *external* reflected highlight — this is the opposite instruction from the chrome matcap, and is the whole point of a separate asset.
+- [ ] No pure-white blown highlight anywhere (that would read as chrome, not murky potential).
+- [ ] Dominant hues: violet/indigo/deep purple, with magenta and the faintest cyan as accents only — no warm colors.
+- [ ] Doesn't read as a planet (no craters, no continents, no starfield) or a gemstone (no faceted cuts) — organic, murky, alive.
+- [ ] Works when cropped to a circle roughly 9–12vmin on screen: check that the interesting detail (glowing veins) isn't so fine it disappears at that size.
+
+**Reference stills:** mv-06, mv-07 (the murky lavender-fog register), general style-anchor palette.
+
+---
+
 ## Rejection quick-reference (applies to every asset)
 
 Reject immediately if you see: any orange/yellow/red/green · any nameable object or figure · hard graphic edges or flat color blocks · text or watermark · sci-fi cliché (stars, planets, grids, holograms, circuit patterns) · "HDR wallpaper" oversaturation. When two variants both pass, pick the one that looks better **darker and softer** — the app adds its own light (bloom) on top.
