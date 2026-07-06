@@ -158,11 +158,11 @@ The mask's material progression **is** the narrative spine (style-anchor §2): s
 
 **Spec:** square, 1024×1024. One sphere, centered, filling ~85–90% of frame, on pure black. Unlike Asset 2B (blown-out chrome), this one should be murky and self-contained — a designed small emblem, not a crop of a larger material study.
 
-**Prompt:**
+**Prompt (v2 — v1 read too much like a cosmic nebula planet, and its fine fractal cracks risked turning to mush at real display size):**
 
-> A single sphere floating in pure black void, centered, filling most of the frame — a seed of primordial matter, not yet formed into anything. The surface is a murky, slowly swirling deep-violet and indigo nebula-like substance, dense and opaque at the edges, with a soft inner glow of pale lavender light seeping through cracks and thin veins across the surface, like magma glowing through dark rock, or bioluminescence deep underwater. A few faint threads of magenta and the barest hint of pale cyan thread through the violet — never dominant. No blown-out highlights, no mirror shine, no visible light source or studio reflection — the glow comes from within the sphere itself, softly, unevenly. Heavy analog film grain, soft focus at the rim fading into the black. Mysterious, ancient, dormant — like an egg or an ember waiting to ignite.
+> A single sphere floating in pure black void, centered, filling most of the frame — an egg-like seed of dormant primordial life, not a planet or celestial body. The surface is smooth organic dark violet-indigo tissue, like the shell of a chrysalis or a vein-laced membrane, with a small number of thick glowing veins of pale lavender-white light running across the surface and branching, as if lit from underneath by inner bioluminescence — think firefly veins glowing under dark skin, or lightning trapped inside a geode, never starlight or a nebula. Keep the glowing veins few and bold (3–6 major branches), not many fine fractal cracks, so the pattern stays legible even when shrunk very small. A faint wash of magenta and the barest hint of pale cyan color the glow, never warm. No stars, no cosmic dust, no crater texture, no continents, no visible horizon line — this must read as a living seed or egg, not a planet or moon. Heavy analog film grain, soft-focus rim fading to black.
 >
-> **Negative:** orange, yellow, red, green, warm tones, mirror/chrome reflections, blown white highlights, visible studio lighting, hard edges, geometric patterns, text, watermark, second sphere, cropped sphere, planet/moon look (craters, continents), starfield.
+> **Negative:** planet, moon, nebula, galaxy, starfield, space, cosmic dust, craters, continents, orange, yellow, red, green, warm tones, mirror/chrome reflections, blown white highlights, hard edges, geometric patterns, text, watermark, second sphere, cropped sphere.
 
 **Acceptance checklist:**
 
@@ -170,8 +170,8 @@ The mask's material progression **is** the narrative spine (style-anchor §2): s
 - [ ] Glow reads as *emitted from within* (uneven inner light through cracks/veins), not an *external* reflected highlight — this is the opposite instruction from the chrome matcap, and is the whole point of a separate asset.
 - [ ] No pure-white blown highlight anywhere (that would read as chrome, not murky potential).
 - [ ] Dominant hues: violet/indigo/deep purple, with magenta and the faintest cyan as accents only — no warm colors.
-- [ ] Doesn't read as a planet (no craters, no continents, no starfield) or a gemstone (no faceted cuts) — organic, murky, alive.
-- [ ] Works when cropped to a circle roughly 9–12vmin on screen: check that the interesting detail (glowing veins) isn't so fine it disappears at that size.
+- [ ] Doesn't read as a planet/nebula (no crater texture, no continents, no starfield, no "cosmic photo" gestalt) or a gemstone (no faceted cuts) — organic, alive, egg-like.
+- [ ] Veins are few and bold (roughly 3–6 major branches), not fine fractal lace — check legibility by shrinking the image to thumbnail size before accepting.
 
 **Reference stills:** mv-06, mv-07 (the murky lavender-fog register), general style-anchor palette.
 
