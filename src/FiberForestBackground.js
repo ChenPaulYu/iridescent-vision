@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import spritePath from './textures/generated/particle-sprite.png';
+import silkPath from './textures/generated/silk-veil.jpg';
 
 // Instanced fiber shaders ----------------------------------------------------
 const fiberVertexShader = /* glsl */`
@@ -180,6 +182,7 @@ const tunnelFragmentShader = /* glsl */`
   uniform vec3 uTipColor;
   uniform vec3 uGlowColor;
   uniform float uVerticalScroll;
+  uniform sampler2D uSilk;
   varying vec2 vUv;
   varying float vRadial;
 
@@ -204,13 +207,22 @@ const tunnelFragmentShader = /* glsl */`
     float ridges = abs(sin(flow * 46.0));
     float fiber = pow(1.0 - ridges, 4.5);
 
+    // Photographed silk-drape luminance layered over the procedural
+    // ridges: real cloth micro-structure the fbm can't fake (mv-10).
+    float silk = texture2D(uSilk, vec2(
+      fract(uv.x * 2.0 + swirl * 0.02),
+      fract(uv.y * 1.4 - uVerticalScroll * 0.008 - time * 0.015)
+    )).r;
+
     float depthFade = smoothstep(0.05, 0.35, uv.y) * (1.0 - uv.y);
     float edge = smoothstep(0.45, 1.0, vRadial);
-    float alpha = fiber * edge * depthFade;
+    float alpha = fiber * edge * depthFade * (0.45 + 0.85 * silk);
+    alpha += silk * silk * edge * depthFade * 0.10;
     if (alpha < 0.01) discard;
 
     vec3 base = mix(uBaseColor, uTipColor, pow(uv.y, 0.45));
-    vec3 color = base + uGlowColor * fiber * edge * 1.2;
+    vec3 color = base + uGlowColor * fiber * edge * (0.7 + 0.8 * silk);
+    color += uGlowColor * silk * silk * edge * 0.28;
     color *= mix(0.4, 1.2, edge);
 
     gl_FragColor = vec4(color, alpha);
@@ -223,6 +235,7 @@ const sparkVertexShader = /* glsl */`
   uniform float uSparkleWrap;
   attribute vec3 aSeed;
   varying float vStrength;
+  varying float vRot;
 
   void main() {
     vec3 pos = position;
@@ -233,23 +246,33 @@ const sparkVertexShader = /* glsl */`
 
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
-    float size = 6.0 + sin(uTime * 0.6 + aSeed.x) * 4.0;
+    // Sprite speck fills ~1/4 of its frame, so points run larger than
+    // the old full-quad procedural disc did.
+    float size = 10.0 + sin(uTime * 0.6 + aSeed.x) * 6.0;
     gl_PointSize = size * (280.0 / -mvPosition.z);
     vStrength = 0.5 + 0.5 * sin(uTime * 0.8 + aSeed.y);
+    vRot = aSeed.z * 6.28318;
   }
 `;
 
 const sparkFragmentShader = /* glsl */`
   uniform vec3 uGlowColor;
+  uniform sampler2D uSprite;
   varying float vStrength;
+  varying float vRot;
 
   void main() {
-    vec2 coord = gl_PointCoord - 0.5;
-    float dist = length(coord);
-    float alpha = smoothstep(0.4, 0.0, dist);
-    vec3 color = uGlowColor * (0.4 + vStrength * 0.6);
-    gl_FragColor = vec4(color, alpha * 0.35 * vStrength);
-    if (gl_FragColor.a < 0.01) discard;
+    // Per-particle rotation so the asymmetric ink-fleck sprite doesn't
+    // read as one repeated stamp.
+    vec2 c = gl_PointCoord - 0.5;
+    float s = sin(vRot);
+    float co = cos(vRot);
+    vec2 rc = vec2(c.x * co - c.y * s, c.x * s + c.y * co) + 0.5;
+    vec3 tex = texture2D(uSprite, clamp(rc, 0.0, 1.0)).rgb;
+    float lum = dot(tex, vec3(0.299, 0.587, 0.114));
+    if (lum < 0.02) discard;
+    vec3 color = uGlowColor * (0.4 + vStrength * 0.6) * (0.35 + lum * 1.2);
+    gl_FragColor = vec4(color, lum * 0.5 * vStrength);
   }
 `;
 
@@ -314,6 +337,13 @@ class FiberForestBackground {
     this.targetMode = 0.0;
     this.modeRate = 0;
 
+    const texLoader = new THREE.TextureLoader();
+    this.silkTexture = texLoader.load(silkPath, (t) => {
+      t.wrapS = THREE.RepeatWrapping;
+      t.wrapT = THREE.RepeatWrapping;
+    });
+    this.spriteTexture = texLoader.load(spritePath);
+
     this.tunnelUniforms = {
       uTime: this.uniforms.uTime,
       uBaseColor: this.uniforms.uBaseColor,
@@ -321,6 +351,7 @@ class FiberForestBackground {
       uGlowColor: this.uniforms.uGlowColor,
       uVerticalScroll: this.uniforms.uVerticalScroll,
       uRadius: { value: this.options.tunnelRadius },
+      uSilk: { value: this.silkTexture },
     };
 
     this.sparkUniforms = {
@@ -328,6 +359,7 @@ class FiberForestBackground {
       uGlowColor: this.uniforms.uGlowColor,
       uVerticalScroll: this.uniforms.uVerticalScroll,
       uSparkleWrap: { value: this.options.tunnelHeight },
+      uSprite: { value: this.spriteTexture },
     };
 
     this.previousFog = scene.fog || null;

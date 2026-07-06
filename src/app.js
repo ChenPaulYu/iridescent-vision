@@ -15,6 +15,9 @@ import { Activity } from './Activity';
 import { Gravity } from './Gravity';
 import { SoundHandler } from './SoundHandler';
 import { TextLayer } from './TextLayer';
+import matcapRubberPath from './textures/generated/matcap-rubber.jpg';
+import matcapChromePath from './textures/generated/matcap-chrome.jpg';
+import surfaceHeightPath from './textures/generated/surface-height.jpg';
 import { Updater } from './core/Updater';
 import { EventBus } from './core/EventBus';
 import { PostPipeline } from './core/PostPipeline';
@@ -166,6 +169,9 @@ class IridescentVisionApp {
 
       this.soundHandler.scheduleToneTime(() => {
         this.cinematicFlash(900);
+        // Material narrative beat: soft rubber body hardens into liquid
+        // chrome behind the flash (see docs/asset-brief.md, Asset 2).
+        this.tweenMatcapBlend(1.0, 1600, 'easeOutQuart');
 
         if (this.softVolume) {
           this.softVolume.disable();
@@ -417,16 +423,91 @@ class IridescentVisionApp {
       opacity: 0.95,
     });
     const rimColor = new THREE.Color('#d8b5ff');
+
+    const texLoader = new THREE.TextureLoader();
+    const matcapRubber = texLoader.load(matcapRubberPath);
+    const matcapChrome = texLoader.load(matcapChromePath);
+    const surfaceTex = texLoader.load(surfaceHeightPath);
+    surfaceTex.wrapS = THREE.RepeatWrapping;
+    surfaceTex.wrapT = THREE.RepeatWrapping;
+
+    // Kept outside onBeforeCompile so tweens can mutate values before
+    // and after the program compiles. The matcap IS the mask's material
+    // narrative: rubber-gel (Awakening) -> liquid chrome (Ascension),
+    // cross-faded at the soft2Gravity cinematic flash.
+    const matcapUniforms = {
+      uMatcapRubber: { value: matcapRubber },
+      uMatcapChrome: { value: matcapChrome },
+      uSurfaceTex: { value: surfaceTex },
+      uMatcapBlend: { value: 0.0 },
+      uMatcapMix: { value: 0.78 },
+      uSurfaceScale: { value: 0.16 },
+      uSurfaceAmount: { value: 0.05 },
+    };
+    this.matcapUniforms = matcapUniforms;
+
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uRimColor = { value: rimColor.clone() };
       shader.uniforms.uRimStrength = { value: 0.7 };
       shader.uniforms.uRimExponent = { value: 2.3 };
-      shader.fragmentShader = shader.fragmentShader.replace(
+      Object.assign(shader.uniforms, matcapUniforms);
+
+      shader.vertexShader = `
+        varying vec3 vMaskPos;
+        varying vec3 vMaskNormal;
+      ` + shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+         vMaskPos = position;
+         vMaskNormal = normal;`
+      );
+
+      shader.fragmentShader = `
+        uniform sampler2D uMatcapRubber;
+        uniform sampler2D uMatcapChrome;
+        uniform sampler2D uSurfaceTex;
+        uniform float uMatcapBlend;
+        uniform float uMatcapMix;
+        uniform float uSurfaceScale;
+        uniform float uSurfaceAmount;
+        varying vec3 vMaskPos;
+        varying vec3 vMaskNormal;
+
+        // Tri-planar height sample: mask3 has no UVs, so the generated
+        // surface map is projected along the object axes and blended by
+        // the normal. Feeds micro-relief into the matcap lookup.
+        float maskSurfaceHeight(vec3 p, vec3 n) {
+          vec3 an = abs(n);
+          an /= (an.x + an.y + an.z + 0.0001);
+          float hx = texture2D(uSurfaceTex, p.yz * uSurfaceScale).r;
+          float hy = texture2D(uSurfaceTex, p.xz * uSurfaceScale).r;
+          float hz = texture2D(uSurfaceTex, p.xy * uSurfaceScale).r;
+          return hx * an.x + hy * an.y + hz * an.z;
+        }
+      ` + shader.fragmentShader.replace(
         'vec4 diffuseColor = vec4( diffuse, opacity );',
         `float rimDot = clamp(dot(normalize(vNormal), normalize(-vViewPosition)), 0.0, 1.0);
          float rim = pow(1.0 - rimDot, uRimExponent);
          vec3 rimCol = uRimColor * rim * uRimStrength;
          vec4 diffuseColor = vec4(diffuse + rimCol, opacity);`
+      ).replace(
+        'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+        `float surfH = maskSurfaceHeight(vMaskPos, normalize(vMaskNormal));
+         vec3 mcViewDir = normalize( vViewPosition );
+         vec3 mcX = normalize( vec3( mcViewDir.z, 0.0, - mcViewDir.x ) );
+         vec3 mcY = cross( mcViewDir, mcX );
+         vec2 mcUv = vec2( dot( mcX, normal ), dot( mcY, normal ) ) * 0.495 + 0.5;
+         mcUv += (surfH - 0.5) * uSurfaceAmount;
+         vec3 mcRub = texture2D(uMatcapRubber, mcUv).rgb;
+         vec3 mcChr = texture2D(uMatcapChrome, mcUv).rgb;
+         vec3 mcCol = mix(mcRub, mcChr, uMatcapBlend);
+         // Scale the matcap by scene lighting so MouseLight's spotlight
+         // still sculpts the face during Awakening.
+         float mcSceneLum = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
+         vec3 mcLit = mcCol * clamp(0.30 + mcSceneLum * 1.5, 0.0, 1.5);
+         mcLit *= 0.9 + 0.2 * surfH;
+         outgoingLight = mix(outgoingLight, mcLit, uMatcapMix) + rimCol * 0.35;
+         gl_FragColor = vec4( outgoingLight, diffuseColor.a );`
       );
       material.userData.shader = shader;
     };
@@ -439,6 +520,20 @@ class IridescentVisionApp {
     this.maskMaterial = material;
     this.attachOrnamentShell(mesh);
     if (this.palette) this.palette.broadcast();
+  }
+
+  tweenMatcapBlend(target, durationMs = 1500, easingName = 'easeOutQuart') {
+    if (!this.matcapUniforms) return;
+    const uniform = this.matcapUniforms.uMatcapBlend;
+    const ease = getEasing(easingName);
+    const startValue = uniform.value;
+    const startTime = performance.now();
+    const tick = () => {
+      const t = Math.min((performance.now() - startTime) / durationMs, 1);
+      uniform.value = startValue + (target - startValue) * ease(t);
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
 
   attachOrnamentShell(mesh) {

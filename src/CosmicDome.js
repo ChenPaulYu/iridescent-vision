@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import spritePath from './textures/generated/particle-sprite.png';
 
 const dustVertexShader = /* glsl */`
   uniform float uTime;
@@ -26,16 +27,18 @@ const dustVertexShader = /* glsl */`
 const dustFragmentShader = /* glsl */`
   uniform vec3 uBaseColor;
   uniform vec3 uGlowColor;
+  uniform sampler2D uSprite;
   varying float vAlpha;
   varying float vSeedA;
 
   void main() {
-    vec2 coord = gl_PointCoord - 0.5;
-    float dist = length(coord);
-    float soft = smoothstep(0.5, 0.0, dist);
-    if (soft < 0.02) discard;
+    // Generated ink-fleck sprite instead of a procedural disc — black
+    // background reads as transparent under additive blending.
+    vec3 tex = texture2D(uSprite, gl_PointCoord).rgb;
+    float lum = dot(tex, vec3(0.299, 0.587, 0.114));
+    if (lum < 0.02) discard;
     vec3 color = mix(uBaseColor, uGlowColor, 0.5 + 0.35 * sin(vSeedA * 2.0));
-    gl_FragColor = vec4(color, soft * vAlpha * 0.5);
+    gl_FragColor = vec4(color * (0.4 + lum * 1.1), lum * vAlpha * 0.6);
   }
 `;
 
@@ -56,15 +59,15 @@ const burstVertexShader = /* glsl */`
 `;
 
 const burstFragmentShader = /* glsl */`
+  uniform sampler2D uSprite;
   varying vec3 vTint;
   varying float vLife;
 
   void main() {
-    vec2 coord = gl_PointCoord - 0.5;
-    float dist = length(coord);
-    float soft = smoothstep(0.5, 0.0, dist);
-    if (soft < 0.02 || vLife <= 0.0) discard;
-    gl_FragColor = vec4(vTint, soft * vLife * 0.8);
+    vec3 tex = texture2D(uSprite, gl_PointCoord).rgb;
+    float lum = dot(tex, vec3(0.299, 0.587, 0.114));
+    if (lum < 0.02 || vLife <= 0.0) discard;
+    gl_FragColor = vec4(vTint * (0.3 + lum * 1.2), lum * vLife * 0.85);
   }
 `;
 
@@ -354,11 +357,14 @@ class CosmicDome {
     this.rotationOffset = 0;
     this.shakePhase = 0;
 
+    this.spriteTexture = new THREE.TextureLoader().load(spritePath);
+
     this.uniforms = {
       uTime: { value: 0 },
       uIntensity: { value: 0 },
       uBaseColor: { value: new THREE.Color(this.options.baseColor) },
       uGlowColor: { value: new THREE.Color(this.options.glowColor) },
+      uSprite: { value: this.spriteTexture },
     };
 
     this.yantraUniforms = {
@@ -441,6 +447,7 @@ class CosmicDome {
     geom.setAttribute('burstScale', new THREE.BufferAttribute(scales, 1));
 
     const mat = new THREE.ShaderMaterial({
+      uniforms: { uSprite: { value: this.spriteTexture } },
       vertexShader: burstVertexShader,
       fragmentShader: burstFragmentShader,
       transparent: true,
