@@ -26,18 +26,12 @@ var GlassSkin = function(scene, mesh) {
         // MixOperation shows the refracted environment directly instead
         // of multiplying it with scene lighting — with the scene's single
         // dim directional light, Multiply rendered the glass near-black.
-        // reflectivity lowered + real alpha added (2026-07-06): at 0.92
-        // reflectivity with no transparency, the surface read as a mirror
-        // chrome ball rather than glass — real opacity blending plus a
-        // lighter mirror term sells "see-through" over "reflective".
         cubeMaterial = new THREE.MeshPhongMaterial( {
             color: 0xffffff,
             envMap: cubeCamera.renderTarget.texture,
             refractionRatio: 0.93,
             combine: THREE.MixOperation,
-            reflectivity: 0.72,
-            transparent: true,
-            opacity: 0.82,
+            reflectivity: 0.92,
         } );
 
         // "Third-eye" ornament recast as light fracturing inside the

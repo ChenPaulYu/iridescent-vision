@@ -173,28 +173,52 @@ The mask's material progression **is** the narrative spine (style-anchor §2): s
 
 ---
 
-## Asset 6 — Opening ember (primordial seed)
+## Asset 6 — Opening ember (primordial seed) — v3 ACCEPTED 2026-07-06
 
 **Used for:** the loading/CTA screen's single glowing sphere — the seed of pure potential the goddess is dreamed from, before Awakening begins. Currently faked with the chrome matcap (Asset 2B) run through CSS multiply/brightness hacks; a purpose-built texture would look more intentional and let those CSS filters go away.
 
 **Spec:** square, 1024×1024. One sphere, centered, filling ~85–90% of frame, on pure black. Unlike Asset 2B (blown-out chrome), this one should be murky and self-contained — a designed small emblem, not a crop of a larger material study.
 
-**Prompt (v2 — v1 read too much like a cosmic nebula planet, and its fine fractal cracks risked turning to mush at real display size):**
+**Prompt (v3 — v2's "chrysalis membrane" reads too smooth/synthetic in the real render, more like a glossy toy orb with a clean vector crack than something primordial; pivoting to raw stone, the same material language that worked for Asset 2C's magnetite matcap, for thematic continuity — she begins as raw mineral with fire trapped inside, and later magnetizes into an actual mineral body):**
 
-> A single sphere floating in pure black void, centered, filling most of the frame — an egg-like seed of dormant primordial life, not a planet or celestial body. The surface is smooth organic dark violet-indigo tissue, like the shell of a chrysalis or a vein-laced membrane, with a small number of thick glowing veins of pale lavender-white light running across the surface and branching, as if lit from underneath by inner bioluminescence — think firefly veins glowing under dark skin, or lightning trapped inside a geode, never starlight or a nebula. Keep the glowing veins few and bold (3–6 major branches), not many fine fractal cracks, so the pattern stays legible even when shrunk very small. A faint wash of magenta and the barest hint of pale cyan color the glow, never warm. No stars, no cosmic dust, no crater texture, no continents, no visible horizon line — this must read as a living seed or egg, not a planet or moon. Heavy analog film grain, soft-focus rim fading to black.
+> A single fragment of raw, rough dark stone or meteorite floating in pure black void, centered, filling most of the frame — unpolished, irregular, ancient. NOT a smooth egg, NOT a polished sphere, NOT a gemstone with cut facets. The surface is matte, granular, pitted rock — real photographed mineral texture, like a piece of split-open ore or a fallen meteorite fragment. A few (3–5, not more) bold, thick cracks break across the rough surface, and molten light glows out from deep within these cracks — like lava seen through a fissure, or fire trapped inside stone. The glow is uneven and organic along each crack, brightest at a couple of points, not a uniform neon line. Base stone color is near-black charcoal with a cool violet-grey cast; the glow within the cracks is pale lavender-white with a faint magenta undertone, never warm. Heavy analog film grain, the rock's silhouette softening into soft focus at the rim rather than a hard cut edge. No stars, no cosmic dust, no craters-as-decoration, no continents, no smooth egg-like sheen, no faceted gem cuts, no polished chrome.
 >
-> **Negative:** planet, moon, nebula, galaxy, starfield, space, cosmic dust, craters, continents, orange, yellow, red, green, warm tones, mirror/chrome reflections, blown white highlights, hard edges, geometric patterns, text, watermark, second sphere, cropped sphere.
+> **Negative:** smooth sphere, glossy surface, egg, chrysalis, polished, planet, moon, nebula, galaxy, starfield, space, cosmic dust, continents, faceted gemstone, cut crystal, clean vector lightning bolt, single thin crack line, orange, yellow, red, green, warm tones, mirror/chrome reflections, blown white highlights, hard edges, geometric patterns, text, watermark, second sphere/rock, cropped.
 
 **Acceptance checklist:**
 
-- [ ] One sphere, centered, fully inside frame, pure black background (corners/edges must be flat black, same auto-reject reason as Asset 4).
-- [ ] Glow reads as *emitted from within* (uneven inner light through cracks/veins), not an *external* reflected highlight — this is the opposite instruction from the chrome matcap, and is the whole point of a separate asset.
-- [ ] No pure-white blown highlight anywhere (that would read as chrome, not murky potential).
-- [ ] Dominant hues: violet/indigo/deep purple, with magenta and the faintest cyan as accents only — no warm colors.
-- [ ] Doesn't read as a planet/nebula (no crater texture, no continents, no starfield, no "cosmic photo" gestalt) or a gemstone (no faceted cuts) — organic, alive, egg-like.
-- [ ] Veins are few and bold (roughly 3–6 major branches), not fine fractal lace — check legibility by shrinking the image to thumbnail size before accepting.
+- [ ] One rock fragment, centered, fully inside frame, pure black background (corners/edges must be flat black, same auto-reject reason as Asset 4).
+- [ ] Reads as **raw, rough stone** — visible granular/pitted rock texture, irregular lumpy silhouette (not a perfect sphere) — if it looks smooth/glossy/egg-like, reject (that was v2's problem).
+- [ ] Glow reads as *emitted from within* through real cracks, uneven and organic — not a single clean glowing line (that reads as a vector graphic, not molten light in stone).
+- [ ] 3–5 bold cracks, not fine fractal lace and not just one — check legibility by shrinking the image to thumbnail size before accepting.
+- [ ] No pure-white blown highlight anywhere (that would read as chrome/polished, not raw mineral).
+- [ ] Dominant hues: charcoal/violet-grey stone, pale lavender-white/magenta glow only — no warm colors.
 
-**Reference stills:** mv-06, mv-07 (the murky lavender-fog register), general style-anchor palette.
+**Reference stills:** mv-01, mv-09 (raw mineral/rock register — same reference family as Asset 2C's magnetite matcap).
+
+---
+
+## Asset 7 — Submerged root wall (Awakening/Ascension side panels)
+
+**Used for:** large background panels flanking the tunnel on the left/right (Awakening reads as "underwater" per artist feedback 2026-07-06 — real photographed root/bark realism, not a procedural shader, is needed here). Applied to tall side panels, not the mask.
+
+**Spec:** portrait, 1024×1536 (2:3). One trunk/root mass, filling most of the frame vertically, on a hazy dark background — no pure-black corners required here (unlike the matcap sphere assets), since this is a background panel, not an isolated emblem.
+
+**Prompt:**
+
+> A photorealistic close-up of a real, weathered tree trunk and its gnarled root system, seen underwater from below looking up toward a distant, murky water surface — the same organic bark realism, cracks, and root texture as genuine underwater nature photography, but the entire image recolored into a cool monochromatic-iridescent palette: deep purple-black shadows, violet-blue midtones, pale lavender-white highlights where light catches the bark and suspended particles. NO natural brown, tan, or green anywhere. The roots split and branch into multiple gnarled limbs disappearing into hazy blue-violet water below. Soft shafts of pale lavender-white light filter down from the water surface far above, catching suspended particulate matter and creating gentle volumetric light beams through the murky water. Heavy atmospheric haze, soft focus at the edges, heavy analog film grain, cinematic underwater photography.
+>
+> **Negative:** brown, tan, orange, yellow, green, warm tones, clear bright daylight, tropical/sunlit water, fish, other creatures, text, watermark, cartoon, illustration, painting style, land or above-water scene, CGI/render look.
+
+**Acceptance checklist:**
+
+- [ ] Reads as **real photographed bark/root texture** — organic cracks, weathering, irregular growth, not a smooth or stylized surface.
+- [ ] Visible light shafts penetrating from above through hazy water — this is the specific "穿透水底" feeling requested, not just a static trunk portrait.
+- [ ] Dominant hues: violet/blue-purple/lavender-white only — if any brown/tan/green survives the recolor, reject.
+- [ ] No fish/creatures/land elements — keep focus on trunk + light + water haze.
+- [ ] Composition works as a tall vertical panel (trunk mass filling most of the frame top-to-bottom).
+
+**Reference stills:** general style-anchor palette; user-provided underwater root photograph (recolor target only — palette must still follow project rules, not the reference's natural brown/green).
 
 ---
 

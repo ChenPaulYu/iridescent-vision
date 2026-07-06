@@ -34,6 +34,27 @@
 - **Goddess state:** Mask appears to fragment / dissolve into the dome. The cycle prepares to reset.
 - **Transition out:** `Activity` opens — a cube-skybox of `poster.jpg` and a clickable portrait sphere (`sonia.jpg`). The portrait links the experience back to the human author behind the goddess — the final return to the embodied world.
 - **Palette:** `reflection` (deep purple, soft lavender glow).
+- **Ending timeline (rescaled 2026-07-06 to match the real track length):**
+  `bgm.mp3` is ~128.5s total. The tail sequence must fit inside that —
+  it drifted out to firing at 213s/224s/244s/250s at one point (84+
+  seconds after the music had already ended), which read as the piece
+  "getting stuck" / the head never dispersing. Correct absolute times
+  (`SoundHandler.schedule(fn, min, sec)` — always absolute-from-start,
+  not relative to whichever nested closure registers it):
+  | Time | Event |
+  |---|---|
+  | 1:38.4 | `shakeHead` — HeadMove 'shake' |
+  | 1:53.5 | `headFlake` — HeadMove 'flake' + the full dispersal payload (reflection palette, `cosmicDome.decompose(8000)`, ornament flake tween, prayer-beads fade, gold-flake burst) |
+  | 2:02 | `headUp` — flash + envDome bump + HeadMove 'up' |
+  | 2:05 | `shakeHead2` — flash + HeadMove 'shake' |
+  | 2:07 | `rotateHead` — HeadMove 'rotate' + palette→'veil' + envDome/mantra tweens (the "III→IV turn") |
+  | 2:09 | `enableActivity` — teardown (headmove/mesh/face/envDome) + `Activity` portrait |
+  This matches the *original* pre-dispersal-effects schedule (see git
+  history pre-refactor) — the dispersal effects were added later onto a
+  disconnected, much-later time slot and never recalibrated against the
+  actual track. If `bgm.mp3` is ever replaced with a different-length
+  track, this whole table must be re-derived (check duration with
+  `afinfo`/`ffprobe`, don't assume).
 
 ## Visual Motifs
 

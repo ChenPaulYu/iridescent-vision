@@ -3,7 +3,8 @@ import * as THREE from 'three';
 
 var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
 
-    let randomPoints = [], camPosIndex = 0, spline, deltaRotate = 0.1, deltaFlake = 0, deltaShake = 1, deltaMove = 1;
+    let randomPoints = [], camPosIndex = 0, spline, deltaRotate = 0.02, deltaFlake = 0, deltaShake = 1, deltaMove = 1;
+    let rotateModeStart = null;
     let upper = 50, lower  = -50;
     this.mode = ''; 
     this.camera = camera
@@ -105,11 +106,20 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
 
 
     let faceRotating = () => {
+        // was: += 1 rad/frame unconditionally, plus a broken `this.camera.position > 0`
+        // check (comparing a Vector3 to a number, always false) that added another
+        // += 0.5 every frame regardless — 1.5 rad/frame at 60fps is ~14 full spins
+        // per second, plus the camera pulling back 60 units/sec (reported
+        // 2026-07-06: scene 3/4 "轉太快"). Slowed to a gentle multi-second turn,
+        // then per further feedback eased in from a standstill (quadratic
+        // ramp over ~2.2s from changeMode('rotate')'s timestamp) rather than
+        // starting at full speed immediately.
         this.controls.autoRotate = false
-        this.camera.rotation.z += 1
-        this.camera.position.z -= 1
-        if (this.camera.position > 0) this.camera.rotation.z += 1
-        else this.camera.rotation.z += 0.5
+        const elapsed = rotateModeStart ? performance.now() - rotateModeStart : 2200
+        const t = Math.min(elapsed / 2200, 1)
+        const ease = t * t
+        this.camera.rotation.z += 0.012 * ease
+        this.camera.position.z -= 0.15 * ease
         if (this.camera.position.z <= -100) removeModelByName('face')
     }
 
@@ -175,6 +185,9 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
 
     this.changeMode = (mode, camera, face, mesh) => {
         this.mode = mode
+        if (mode == 'rotate') {
+            rotateModeStart = performance.now()
+        }
         if (mode == 'flake') {
             resetPos(camera, face, mesh)
             this.controls.autoRotateSpeed = 1

@@ -39,6 +39,13 @@
         rgba(0, 0, 0, 0) 100%);
     background-size: cover;
     background-position: center;
+    /* A perfect circle with a crisp border-radius edge reads as a hard
+       graphic shape, against style-anchor's "glows/blurs at every edge,
+       no hard outlines" rule (reported 2026-07-06: the ember looked too
+       clean/synthetic). Mask the outer ring to transparent so the
+       silhouette itself dissolves into the glow instead of cutting. */
+    mask-image: radial-gradient(circle, black 58%, transparent 92%);
+    -webkit-mask-image: radial-gradient(circle, black 58%, transparent 92%);
     box-shadow: 0 0 7vmin rgba(150, 105, 235, 0.22),
                 0 0 2vmin rgba(210, 180, 250, 0.24);
     animation: breathe 4.2s infinite ease-in-out,

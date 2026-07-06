@@ -25,6 +25,7 @@ const GradeShader = {
     uGrain: { value: 0.055 },
     uVignette: { value: 0.30 },
     uAberration: { value: 0.0002 },
+    uGodrayIntensity: { value: 0 },
   },
 
   vertexShader: /* glsl */`
@@ -45,6 +46,7 @@ const GradeShader = {
     uniform float uGrain;
     uniform float uVignette;
     uniform float uAberration;
+    uniform float uGodrayIntensity;
     varying vec2 vUv;
 
     vec3 aces(vec3 x) {
@@ -79,6 +81,27 @@ const GradeShader = {
       // Shadow-deepening S-curve: the piece lives in deep purple-black
       // (style-anchor squint test), so push midtones down after ACES.
       color = pow(color, vec3(1.14)) * 0.97;
+
+      // God rays (user request 2026-07-06): soft light shafts penetrating
+      // from above, like sunlight breaking through a water surface —
+      // done in screen space (not in the tunnel's own local UVs) so "up"
+      // unambiguously means the top of frame regardless of the tunnel
+      // mesh's own coordinate mapping. Radiates from a point above the
+      // visible frame; angular sine bands make the shafts, distance
+      // falloff keeps them from washing the whole screen.
+      if (uGodrayIntensity > 0.001) {
+        // vUv.y = 1 is the top of frame in this pass's convention — the
+        // origin must sit above 1.0, not below 0.0 (first pass placed it
+        // at -0.35, i.e. off the BOTTOM, backwards from "light from above").
+        vec2 rayOrigin = vec2(0.5, 1.35);
+        vec2 toPixel = vUv - rayOrigin;
+        float angle = atan(toPixel.x, toPixel.y);
+        float dist = length(toPixel);
+        float rayPattern = pow(max(0.0, sin(angle * 9.0 + uTime * 0.12)), 3.0);
+        float falloff = smoothstep(1.25, 0.1, dist);
+        float rays = rayPattern * falloff * uGodrayIntensity;
+        color += vec3(0.80, 0.78, 0.98) * rays * 0.55;
+      }
 
       // Vignette: gentle radial falloff, never fully black.
       float vig = 1.0 - uVignette * smoothstep(0.15, 0.72, dist2);
@@ -192,6 +215,24 @@ class PostPipeline {
       this.bloomPass.strength = base + (peak - base) * fall;
       if (t < 1) requestAnimationFrame(tick);
       else this.bloomPass.strength = base;
+    };
+    requestAnimationFrame(tick);
+  }
+
+  // Fades the screen-space god-ray shafts in/out — called per beat
+  // (Awakening/Ascension "underwater" register) rather than left always on.
+  setGodrayIntensity(target, durationMs = 0) {
+    const uniform = this.gradePass.uniforms.uGodrayIntensity;
+    const start = uniform.value;
+    if (durationMs <= 0) {
+      uniform.value = target;
+      return;
+    }
+    const startTime = performance.now();
+    const tick = () => {
+      const t = Math.min((performance.now() - startTime) / durationMs, 1);
+      uniform.value = start + (target - start) * t;
+      if (t < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }

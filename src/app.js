@@ -137,8 +137,12 @@ class IridescentVisionApp {
     this.controls.enablePan = false;
     this.controls.enableZoom = true;
     this.controls.minDistance = 20;
-    this.controls.maxDistance = 140;
     this.controls.target.set(0, 4, 0);
+    // maxDistance locked to the default framing itself (not a hardcoded
+    // number that can drift out of sync with it) — zooming in is still
+    // free, but the audience can never pull back further than the
+    // composed opening shot.
+    this.controls.maxDistance = this.camera.position.distanceTo(this.controls.target);
     this.controls.update();
 
     this.post = new PostPipeline(this.renderer, this.scene, this.camera);
@@ -283,18 +287,18 @@ class IridescentVisionApp {
 
     const bumpFlash = () => {
       this.soundHandler.schedule(() => {
-        let count = 0;
-        const interval = setInterval(() => {
-          this.flash();
-          count += 1;
-          if (count > 5) clearInterval(interval);
-        }, 200);
+        this.energyFlash(750);
         speedupBg();
       }, 0, 45);
     };
 
     const speedupBg = () => {
       this.soundHandler.schedule(() => {
+        // Fades to full black over 700ms (reaching full at ~64.7s), holds
+        // through gravity2Glass's actual scene swap at 65.5s, then fades
+        // back in — the ascent "bursts through" into Orbit under a clean
+        // cut instead of the new scene popping in mid-frame.
+        this.blackoutTransition(1000, 700);
         if (this.background) {
           this.background.speedup = true;
           this.background.setVeilIntensity(1.0, 1200);
@@ -325,6 +329,7 @@ class IridescentVisionApp {
         if (this.gravity) this.gravity.disable();
         this.gravity = null;
         this.testTransparent(2300);
+        if (this.post) this.post.setGodrayIntensity(0, 1800);
         if (this.envDome) {
           this.envDome.enable();
           this.envDome.setIntensity(0.5, 3200);
@@ -372,15 +377,40 @@ class IridescentVisionApp {
       headFlake();
     };
 
+    // The whole tail below was rescaled 2026-07-06: bgm.mp3 is only
+    // ~128.5s long, but this sequence had drifted out to firing at
+    // 213s/224s/244s/250s — 84+ seconds after the music actually ends
+    // ("頭沒有消失" / "好像停在這了": the dispersal + portrait cues were
+    // registered, just scheduled into dead silence long after the track
+    // was over). Restored to the original pre-dispersal-effects timing
+    // (git history: shakeHead 98.4s → flake 113.5s → up 122s → shake
+    // 125s → rotate 127s → portrait 129s, ending right as the track
+    // does) and folded the later-added dispersal payload (decompose,
+    // gold flakes, ornament shatter, reflection palette) into the 113.5s
+    // flake cue instead of its own disconnected slot, and finalHeadUp's
+    // flash/envDome bump into this 122s up cue.
     const headFlake = () => {
       this.soundHandler.schedule(() => {
         this.setHeadmoveMode('flake');
+        this.setBackgroundPalette('reflection');
+        if (this.cosmicDome) this.cosmicDome.decompose(8000);
+        this.tweenOrnament({ flake: 0.95, thirdEye: 0, reveal: 0.1 }, 8000, 'easeOutExpo');
+        if (this.prayerBeads) this.prayerBeads.setIntensity(0, 6000);
+        this.goldFlakeState.active = true;
+        this.goldFlakeState.rate = 22;
+        this.goldFlakeState.timer = 0;
+        setTimeout(() => {
+          this.goldFlakeState.rate = 0;
+          this.goldFlakeState.active = false;
+        }, 9000);
       }, 1, 53.5);
       headUp();
     };
 
     const headUp = () => {
       this.soundHandler.schedule(() => {
+        this.flash(true);
+        if (this.envDome) this.envDome.setIntensity(0.78, 2200);
         this.setHeadmoveMode('up');
       }, 2, 2);
       rotateHead();
@@ -397,8 +427,7 @@ class IridescentVisionApp {
           if (count > 2) clearInterval(interval);
         }, 800);
         this.setHeadmoveMode('shake');
-      }, 2, 7);
-      finalHeadUp();
+      }, 2, 5);
     };
 
     const rotateHead = () => {
@@ -410,49 +439,33 @@ class IridescentVisionApp {
         this.tweenBackgroundPalette('veil', 5000, 'easeInOutCubic');
         if (this.envDome) this.envDome.setIntensity(0.5, 4000);
         if (this.cosmicDome) this.cosmicDome.setMantraIntensity(0.85, 4000);
-      }, 4, 4);
-    };
-
-    const finalHeadUp = () => {
-      this.soundHandler.schedule(() => {
-        this.flash(true);
-        if (this.envDome) this.envDome.setIntensity(0.78, 2200);
-        this.setHeadmoveMode('up');
-      }, 3, 33);
-      afterFlake();
-    };
-
-    const afterFlake = () => {
-      this.soundHandler.schedule(() => {
-        this.setHeadmoveMode('flake');
-        this.setBackgroundPalette('reflection');
-        if (this.cosmicDome) this.cosmicDome.decompose(8000);
-        this.tweenOrnament({ flake: 0.95, thirdEye: 0, reveal: 0.1 }, 8000, 'easeOutExpo');
-        if (this.prayerBeads) this.prayerBeads.setIntensity(0, 6000);
-        this.goldFlakeState.active = true;
-        this.goldFlakeState.rate = 22;
-        this.goldFlakeState.timer = 0;
-        setTimeout(() => {
-          this.goldFlakeState.rate = 0;
-          this.goldFlakeState.active = false;
-        }, 9000);
-      }, 3, 44);
+        // Final exit (2026-07-06, "頭沒有飛出去"): 'rotate' mode's own
+        // camera pull-back reads as the camera retreating, not the head
+        // actually leaving. Give the mask/face a genuine accelerating
+        // upward+outward push for the ~2s remaining before the portrait
+        // cuts in, so the ending reads as her flying off rather than
+        // just fading in place.
+        const flyStart = performance.now();
+        const flyDuration = 2200;
+        const flyOut = () => {
+          const t = Math.min((performance.now() - flyStart) / flyDuration, 1);
+          const speed = t * t;
+          if (this.mesh) {
+            this.mesh.position.y += speed * 2.4;
+            this.mesh.position.z -= speed * 1.7;
+          }
+          if (this.face) {
+            this.face.position.y += speed * 2.4;
+            this.face.position.z -= speed * 1.7;
+          }
+          if (t < 1) requestAnimationFrame(flyOut);
+        };
+        requestAnimationFrame(flyOut);
+      }, 2, 7);
       enableActivity();
     };
 
     const enableActivity = () => {
-      // schedule() takes ABSOLUTE (min, sec) from Transport start, not an
-      // offset from whichever nested closure registered it. This was
-      // (2, 9) = 129s — 95 seconds BEFORE afterFlake's dispersal cue at
-      // (3, 44) = 224s, so Activity tore down headmove and hid the mesh
-      // long before the head ever got to rotate/flake apart. Confirmed
-      // 2026-07-06: the "head disperses too late" / "yantra fades at the
-      // wrong moment" complaints were both this same bug — the real
-      // wind-down sequence (rotateHead at 244s, afterFlake's 8s decompose
-      // at 224s) never got to play against the mask because Activity had
-      // already replaced the scene. Moved to just after afterFlake's 8s
-      // decompose/flake fade finishes (224 + 9 ≈ 233s) so the dispersal
-      // actually plays out before the portrait takes over.
       this.soundHandler.schedule(() => {
         if (this.headmove) {
           this.headmove.disable();
@@ -465,7 +478,7 @@ class IridescentVisionApp {
         if (this.prayerBeads) this.prayerBeads.setIntensity(0, 1500);
         this.activity = new Activity(this.camera, this.scene, this.controls);
         this.activity.enable();
-      }, 3, 53);
+      }, 2, 9);
     };
 
   }
@@ -1094,6 +1107,132 @@ class IridescentVisionApp {
     }, duration + 700);
   }
 
+  // Ascension's mid-beat punctuation (bumpFlash, t=45s). Redesigned
+  // 2026-07-06 as the "can you see the light?" lyric moment (user
+  // request) — an iris-close-then-snap-open rather than a flat pulse:
+  // the frame narrows like eyes drawing shut, then blows open into a
+  // blown-out white flash with the astrolabe geometry flaring to full
+  // brightness for an instant (a glimpse of the "light" the lyric
+  // names) before settling back to Ascension's normal subdued register,
+  // with a longer/stronger bloom surge than the standard punctuation
+  // flash it replaced. Earlier passes: a center-radial gradient (too
+  // faint against the bright tunnel), then a flat full-screen wash
+  // (visible but generic) — this version is the deliberate "wow" beat.
+  energyFlash(duration = 900) {
+    const iris = document.createElement('div');
+    iris.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, transparent 0%, transparent 22%, rgba(4, 2, 10, 0.97) 72%);
+      pointer-events: none;
+      z-index: 9998;
+      opacity: 0;
+      transition: opacity 340ms ease-in;
+    `;
+    document.body.appendChild(iris);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        iris.style.opacity = '1';
+      });
+    });
+
+    const astrolabeBaseline = this.cosmicDome ? this.cosmicDome.astrolabeIntensity : null;
+
+    setTimeout(() => {
+      // Snap open: the iris vanishes almost instantly, replaced by the
+      // blown-out flash — the "seeing the light" instant.
+      iris.style.transition = 'opacity 90ms ease-out';
+      iris.style.opacity = '0';
+
+      const flash = document.createElement('div');
+      flash.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: #fbf7ff;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity ${duration}ms cubic-bezier(0.16, 0.84, 0.3, 1);
+      `;
+      document.body.appendChild(flash);
+
+      const ring = document.createElement('div');
+      ring.style.cssText = `
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        width: 8vmin;
+        height: 8vmin;
+        margin: -4vmin 0 0 -4vmin;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0 60px 20px rgba(220, 200, 255, 0.7),
+                    inset 0 0 40px 10px rgba(220, 200, 255, 0.5);
+        pointer-events: none;
+        z-index: 9998;
+        opacity: 1;
+        transform: scale(1);
+        transition: transform ${duration + 600}ms cubic-bezier(0.16, 0.84, 0.3, 1),
+                    opacity ${duration + 600}ms ease-out;
+      `;
+      document.body.appendChild(ring);
+
+      if (this.post) this.post.pulseBloom(2.1, duration + 500);
+      if (this.cosmicDome) {
+        this.cosmicDome.setAstrolabeIntensity(1.0, 120);
+        setTimeout(() => {
+          this.cosmicDome.setAstrolabeIntensity(astrolabeBaseline != null ? astrolabeBaseline : 0.4, 900);
+        }, duration + 200);
+      }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          flash.style.opacity = '0';
+          ring.style.transform = 'scale(16)';
+          ring.style.opacity = '0';
+        });
+      });
+
+      setTimeout(() => {
+        if (iris.parentNode) iris.parentNode.removeChild(iris);
+        if (flash.parentNode) flash.parentNode.removeChild(flash);
+        if (ring.parentNode) ring.parentNode.removeChild(ring);
+      }, duration + 700);
+    }, 340);
+  }
+
+  // Ascension→Orbit "burst through the sky" cut (user request 2026-07-06):
+  // a genuine full blackout like a scene change, not just a flash — timed
+  // to fully cover gravity2Glass's actual scene swap (fiber background
+  // disposal, GlassSkin/HeadMove construction) underneath a clean black
+  // beat, so the ascent reads as breaking through into a new register
+  // rather than the new scene popping in.
+  blackoutTransition(holdMs = 1000, fadeMs = 700) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: #000000;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity ${fadeMs}ms ease-in;
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+      });
+    });
+    setTimeout(() => {
+      overlay.style.transition = `opacity ${fadeMs}ms ease-out`;
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, fadeMs + 100);
+    }, fadeMs + holdMs);
+  }
+
   updateScene(delta = 0) {
     if (!this.renderer || !this.camera || !this.isStarted) return;
     if (this.softVolume) this.softVolume.update(this.camera);
@@ -1102,9 +1241,17 @@ class IridescentVisionApp {
     if (this.background) {
       this.background.update(delta, this.camera, this.mesh, this.face);
       if (this.background.direction === 'up' && this.background.speedupAmount > 0.5) {
-        const lift = delta * this.background.speedupAmount * 4.5;
+        // Stronger ascent (was 4.5 — read as too timid/"不夠灑脫") plus a
+        // camera counter-dip: the camera holds its ground while she
+        // surges upward, instead of just drifting in a static frame —
+        // sells the liftoff as a g-force moment rather than a slow float.
+        // Safe to leave unbounded here: HeadMove.resetPos() (fired at
+        // the 'flake' mode change, 1:53.5) resets camera/mesh/face
+        // positions outright, so this never accumulates past Ascension.
+        const lift = delta * this.background.speedupAmount * 8.5;
         if (this.mesh) this.mesh.position.y += lift;
         if (this.face) this.face.position.y += lift;
+        if (this.camera) this.camera.position.y -= delta * this.background.speedupAmount * 0.4;
       }
     }
     if (this.cosmicDome) this.cosmicDome.update(delta);
@@ -1454,6 +1601,10 @@ class IridescentVisionApp {
       this.background.setVeilIntensity(0.05, 0);
       this.background.setVeilIntensity(1.0, 5200);
     }
+    // "Underwater" god-ray register for Awakening/Ascension (user request
+    // 2026-07-06) — faded out at the Orbit transition (gravity2Glass),
+    // since Orbit reads as transcendent glass/void, not submerged.
+    if (this.post) this.post.setGodrayIntensity(0.6, 5200);
     if (this.canvas) {
       this.canvas.style.opacity = '1';
       this.canvas.style.pointerEvents = 'auto';
