@@ -92,6 +92,18 @@ All seven layers per `plan/cosmic-dome.md`:
 - **§2 Shared easing** — `core/easing.js` exports `easeInOutCubic`, `easeOutQuart`, `easeOutExpo`, `spikeAndReturn`. Palette tween and ornament tween accept named curves; the four Twin Moments use the documented profiles.
 - **§3 Shared particle pool** — `cosmicDome.spawnDust({position, velocity, count, tint, lifetime, scale})` writes into the 600-slot burst sub-system. The GoldFlakes emitter is the first real caller; mask-source and dome-source dust share one rendering pipeline.
 
+### The thread of civilization (concept, decided 2026-07-06)
+
+The fiber is **one thread reworked by each era's faith**: roots/womb
+(Awakening — the goddess is born from the world-tree's vesica, a few
+umbilical strands attaching behind her rim) → spun lines streaming
+upward (Ascension — the loom age) → woven geometry (Orbit — yantra and
+astrolabe are the finished weave) → unraveled back to dust (Reflection).
+One space transforming, never a cut. Composition rules learned the hard
+way: the womb opening stays wider than the mask silhouette, and every
+strand's z stays behind her plane (depth-test terminates the cords at
+her silhouette, so they can never cross the face).
+
 ### Visual quality pass (feature/visual-quality-pass)
 
 - **Post pipeline** (`core/PostPipeline.js`) — retina pixel ratio, half-res

@@ -12,8 +12,13 @@ let TextLayer = function(startCallBack) {
         start.className = 'start';
         loader.className = 'fadeout';
         start.onclick = ()=> {
-            start.className = 'fadeout';
+            start.className = 'start fadeout';
             document.getElementById('chrome').className += ' fadeout';
+            const voidEl = document.getElementById('void');
+            if (voidEl) voidEl.className = 'fadeout';
+            // Remove the whole overlay once faded so it never blocks
+            // the canvas or pointer events.
+            setTimeout(() => { divElement.style.display = 'none'; }, 1400);
             if (startCallBack) startCallBack();
         }
     }

@@ -84,57 +84,54 @@ const fiberVertexShader = /* glsl */`
     // cinematic contrast like the reference (mostly dark purple base).
     vBrightness = pow(instSeed.y, 2.5) * 1.2 + 0.25;
 
-    // ROOTS mode (uMode = 0): organic branching tendrils. Each fibre
-    // starts from a small cluster of source points (not single point),
-    // follows a cubic curve with a per-fibre random control point,
-    // bends downward and outward like real roots.
-    float seedAngle = instSeed.x * 6.2832;
-    // Wider, deeper source cluster: the old tight top-center knot hung
-    // its strands straight across the goddess's face.
-    float seedRadius = 5.0 + instSeed.z * 9.0;
-    vec3 rootsTop = vec3(
-      cos(seedAngle) * seedRadius,
-      uLength * 0.42 + sin(instSeed.y * 6.2832) * 3.0,
-      sin(seedAngle) * seedRadius - 30.0
-    );
-    // Endpoint: pushed further out so curves are more dramatic, kept
-    // behind the mask plane
-    vec3 rootsEnd = vec3(instOffset.x * 1.8, -uLength * 0.45, instOffset.y * 1.8 - 8.0);
-    // Control point: bends way out then sweeps back inward
-    float ctrlAngle = instSeed.y * 6.2832;
-    float ctrlPush = 10.0 + instSeed.z * 14.0;
-    vec3 ctrlA = vec3(
-      mix(rootsTop.x, rootsEnd.x, 0.35) + cos(ctrlAngle) * ctrlPush,
-      mix(rootsTop.y, rootsEnd.y, 0.55),
-      mix(rootsTop.z, rootsEnd.z, 0.35) + sin(ctrlAngle) * ctrlPush
-    );
-    vec3 ctrlB = vec3(
-      mix(rootsTop.x, rootsEnd.x, 0.7) + cos(ctrlAngle + 1.5) * ctrlPush * 0.6,
-      mix(rootsTop.y, rootsEnd.y, 0.8),
-      mix(rootsTop.z, rootsEnd.z, 0.7) + sin(ctrlAngle + 1.5) * ctrlPush * 0.6
-    );
-    // Cubic Bezier: B(t) = (1-t)^3 P0 + 3(1-t)^2 t P1 + 3(1-t) t^2 P2 + t^3 P3
-    float ti = 1.0 - t;
-    vec3 rootsPos = ti*ti*ti * rootsTop
-                  + 3.0*ti*ti*t * ctrlA
-                  + 3.0*ti*t*t * ctrlB
-                  + t*t*t * rootsEnd;
-    // Per-fibre time wobble — slight breathing
-    rootsPos.x += sin(uTime * 0.3 + instSeed.x * 7.5) * 0.7 * (0.3 + 0.7 * t);
-    rootsPos.z += cos(uTime * 0.25 + instSeed.y * 7.5) * 0.7 * (0.3 + 0.7 * t);
-    // High-frequency twig wobble for texture
-    rootsPos.x += sin(t * 22.0 + instSeed.x * 6.0) * 0.18;
-    rootsPos.z += cos(t * 24.0 + instSeed.y * 6.0) * 0.18;
-    rootsPos.y += yShift * 0.35;
-    // Bezier bellies bulge toward the camera; pin the whole curtain
-    // behind the mask plane (mask sits near z = 7).
-    rootsPos.z = min(rootsPos.z, -6.0);
-    // Width tapers from thick base to thin tip
-    float widthTaper = mix(1.6, 0.4, t);
+    // FIBER WOMB (uMode = 0): the mv-10 vesica at environment scale —
+    // a hollow world-tree of strands. Crown converges toward the axis
+    // far above/below the goddess; at her height the strands part into
+    // a vesica opening. Two hard rules learned the hard way: the
+    // opening is always wider than the mask silhouette, and every
+    // strand stays strictly behind her plane.
+    float modeBlend = clamp(uMode, 0.0, 1.0);
+
+    vec3 rootsPos;
+    float curtainY = -uLength * 0.5 + t * uLength + instOffset.z + yShift;
+    rootsPos.y = curtainY;
+    // mv-10 is muted indigo — no hot white strands in curtain mode.
+    vBrightness *= mix(0.55, 1.0, modeBlend);
+    float side = instOffset.x >= 0.0 ? 1.0 : -1.0;
+    // 0 within her height band, 1 far above/below.
+    float womb = clamp((abs(curtainY) - 30.0) / 26.0, 0.0, 1.0);
+    float gap = mix(16.0, 5.0, womb * womb);
+    float spread = mix(0.9, 0.35, womb);
+    rootsPos.x = side * (gap + abs(instOffset.x) * spread);
+    rootsPos.z = instOffset.y * 0.9 - 30.0;
+
+    // UMBILICAL CORDS: a few strands leave the womb wall and curve to a
+    // ring just behind the mask's rim — she is being born from the web.
+    // Depth-testing against the mask means they visually terminate at
+    // her silhouette and can never cross her face.
+    float isCord = step(0.93, instSeed.z);
+    float cordPull = 0.0;
+    if (isCord > 0.5) {
+      float ca = instSeed.x * 6.2832;
+      float fromBelow = step(1.5, instSeed.y);
+      float tt = mix(t, 1.0 - t, fromBelow);
+      vec3 attach = vec3(cos(ca) * 9.0, 4.0 + sin(ca) * 13.0, -3.0);
+      cordPull = smoothstep(0.35, 0.92, tt);
+      rootsPos = mix(rootsPos, attach, cordPull);
+      vBrightness *= 1.35;
+    }
+
+    // Slow breathing sway + fine strand texture (calms toward the
+    // cord attachment so the connection point holds still)
+    float sway = 1.0 - cordPull;
+    rootsPos.x += sin(uTime * 0.22 + instSeed.x * 6.28 + t * 2.2) * 1.1 * sway;
+    rootsPos.z += cos(uTime * 0.18 + instSeed.y * 6.28 + t * 1.7) * 1.1 * sway;
+    rootsPos.x += sin(t * 26.0 + instSeed.x * 9.0) * 0.16 * sway;
+    rootsPos.z = min(rootsPos.z, mix(-14.0, -2.5, cordPull));
+    float widthTaper = mix(1.3, 0.5, t);
     rootsPos.x += position.x * instWidth * widthTaper;
     rootsPos.z += position.x * instWidth * widthTaper * 0.35;
 
-    float modeBlend = clamp(uMode, 0.0, 1.0);
     vec3 blendedPosition = mix(rootsPos, finalPosition, modeBlend);
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(blendedPosition, 1.0);

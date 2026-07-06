@@ -79,6 +79,7 @@ class IridescentVisionApp {
       transition: { base: '#2a1240', tip: '#e070ff', glow: '#ffe8ff' },
       ascension: { base: '#1a1326', tip: '#ff6ac1', glow: '#ffd0ff' },
       orbit: { base: '#090a1c', tip: '#6ef1ff', glow: '#b2fff7' },
+      veil: { base: '#0d0a24', tip: '#b46bff', glow: '#ffd9f4' },
       reflection: { base: '#140616', tip: '#9d60ff', glow: '#f4c2ff' },
     };
 
@@ -99,7 +100,9 @@ class IridescentVisionApp {
     const height = window.innerHeight;
 
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    this.camera.position.set(0, 10, 50);
+    // Act 1 "curtain sanctuary" framing (mockup A): wide enough that the
+    // parted fiber curtain cocoons the goddess with dark void around.
+    this.camera.position.set(0, 6, 74);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -113,6 +116,8 @@ class IridescentVisionApp {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enable = true;
+    this.controls.target.set(0, 4, 0);
+    this.controls.update();
 
     this.post = new PostPipeline(this.renderer, this.scene, this.camera);
 
@@ -166,6 +171,12 @@ class IridescentVisionApp {
         this.background.enable();
         this.background.setMode(1.0);
       }
+      // Faint dome fog from the very first breath — Act 1 mockup F:
+      // the womb opening reveals depth, not flat black.
+      if (this.envDome) {
+        this.envDome.enable();
+        this.envDome.setIntensity(0.32, 6000);
+      }
       soft2Gravity();
     }, 0, 0);
 
@@ -199,6 +210,12 @@ class IridescentVisionApp {
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(0.55, 4000);
           this.cosmicDome.setTapestryIntensity(0.5, 3000);
+        }
+        // Ascension gets a first breath of the dome fog behind the
+        // tunnel — the Act-3 environment leaking in early.
+        if (this.envDome) {
+          this.envDome.enable();
+          this.envDome.setIntensity(0.3, 4500);
         }
         bumpFlash();
       }, 29.5);
@@ -241,6 +258,7 @@ class IridescentVisionApp {
         if (this.background) {
           this.background.speedup = true;
         }
+        if (this.envDome) this.envDome.setIntensity(0.42, 1500);
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(1.0, 800);
           this.cosmicDome.pulseAstrolabe(1.0, 700, 800);
@@ -324,6 +342,12 @@ class IridescentVisionApp {
     const rotateHead = () => {
       this.soundHandler.schedule(() => {
         this.setHeadmoveMode('rotate');
+        // Scene breath for the III→IV turn: as the head begins to
+        // rotate, the palette slides into a deeper veil register and
+        // the dome dims toward intimacy (user-requested beat).
+        this.tweenBackgroundPalette('veil', 5000, 'easeInOutCubic');
+        if (this.envDome) this.envDome.setIntensity(0.5, 4000);
+        if (this.cosmicDome) this.cosmicDome.setMantraIntensity(0.85, 4000);
       }, 4, 4);
     };
 
@@ -375,6 +399,8 @@ class IridescentVisionApp {
   initDocument() {
     document.body.style.margin = '0px';
     document.body.style.height = '100%';
+    // The piece begins in darkness — never show a white page.
+    document.body.style.background = '#050208';
   }
 
   initLight() {
@@ -882,14 +908,44 @@ class IridescentVisionApp {
       transition: opacity ${duration}ms cubic-bezier(0.22, 0.61, 0.36, 1);
     `;
     document.body.appendChild(overlay);
+
+    // Expanding shockwave ring behind the white pop — reads as the
+    // flash physically radiating out of the goddess.
+    const ring = document.createElement('div');
+    ring.style.cssText = `
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 12vmin;
+      height: 12vmin;
+      margin: -6vmin 0 0 -6vmin;
+      border-radius: 50%;
+      border: 3px solid rgba(232, 214, 255, 0.9);
+      box-shadow: 0 0 40px 12px rgba(200, 160, 255, 0.55),
+                  inset 0 0 30px 6px rgba(200, 160, 255, 0.4);
+      pointer-events: none;
+      z-index: 9998;
+      opacity: 0.95;
+      filter: blur(1px);
+      transform: scale(1);
+      transition: transform ${duration + 500}ms cubic-bezier(0.16, 0.84, 0.3, 1),
+                  opacity ${duration + 500}ms ease-out;
+    `;
+    document.body.appendChild(ring);
+
+    if (this.post) this.post.pulseBloom(1.6, duration + 300);
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         overlay.style.opacity = '0';
+        ring.style.transform = 'scale(14)';
+        ring.style.opacity = '0';
       });
     });
     setTimeout(() => {
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    }, duration + 200);
+      if (ring.parentNode) ring.parentNode.removeChild(ring);
+    }, duration + 700);
   }
 
   updateScene(delta = 0) {

@@ -149,6 +149,21 @@ class PostPipeline {
     if (radius !== undefined) this.bloomPass.radius = radius;
     if (threshold !== undefined) this.bloomPass.threshold = threshold;
   }
+
+  // Momentary bloom surge for flash punctuations: spike to `peak`, decay
+  // quadratically back to the resting strength.
+  pulseBloom(peak = 1.4, durationMs = 850) {
+    const base = this.bloomPass.strength;
+    const start = performance.now();
+    const tick = () => {
+      const t = Math.min((performance.now() - start) / durationMs, 1);
+      const fall = (1 - t) * (1 - t);
+      this.bloomPass.strength = base + (peak - base) * fall;
+      if (t < 1) requestAnimationFrame(tick);
+      else this.bloomPass.strength = base;
+    };
+    requestAnimationFrame(tick);
+  }
 }
 
 export { PostPipeline };
