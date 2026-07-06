@@ -21,9 +21,17 @@ let TextLayer = function(startCallBack) {
 
     this.addButton = (text) => {
         start.className = 'start';
-        loader.className = 'fadeout';
+        // Same ember from seed to invitation — it matures instead of
+        // being swapped for a second element (which read as a flicker).
+        const seed = document.getElementById('emberSeed');
+        if (seed) {
+            seed.style.width = '';
+            seed.style.height = '';
+            seed.className = 'ember ready';
+        }
         start.onclick = ()=> {
             start.className = 'start fadeout';
+            loader.className = 'loader fadeout'; // ignites the ember
             document.getElementById('chrome').className += ' fadeout';
             const voidEl = document.getElementById('void');
             if (voidEl) voidEl.className = 'fadeout';
