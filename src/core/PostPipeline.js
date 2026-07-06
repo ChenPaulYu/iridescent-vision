@@ -21,10 +21,10 @@ const GradeShader = {
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
-    uExposure: { value: 1.18 },
+    uExposure: { value: 0.92 },
     uGrain: { value: 0.055 },
     uVignette: { value: 0.30 },
-    uAberration: { value: 0.0022 },
+    uAberration: { value: 0.0002 },
   },
 
   vertexShader: /* glsl */`
@@ -76,6 +76,10 @@ const GradeShader = {
 
       color = aces(color * uExposure);
 
+      // Shadow-deepening S-curve: the piece lives in deep purple-black
+      // (style-anchor squint test), so push midtones down after ACES.
+      color = pow(color, vec3(1.14)) * 0.97;
+
       // Vignette: gentle radial falloff, never fully black.
       float vig = 1.0 - uVignette * smoothstep(0.15, 0.72, dist2);
       color *= vig;
@@ -102,11 +106,14 @@ class PostPipeline {
 
     this.renderPass = new RenderPass(scene, camera);
 
+    // Tuned in-browser against the additive fiber forest: thresholds
+    // below ~0.55 let the tunnel's stacked additive brightness snowball
+    // into a white column.
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(size.x * 0.5, size.y * 0.5),
-      0.85, // strength
-      0.55, // radius
-      0.30 // threshold
+      0.45, // strength
+      0.50, // radius
+      0.58 // threshold
     );
 
     this.gradePass = new ShaderPass(GradeShader);

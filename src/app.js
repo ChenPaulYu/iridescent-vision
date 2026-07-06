@@ -504,7 +504,7 @@ class IridescentVisionApp {
          // Scale the matcap by scene lighting so MouseLight's spotlight
          // still sculpts the face during Awakening.
          float mcSceneLum = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
-         vec3 mcLit = mcCol * clamp(0.30 + mcSceneLum * 1.5, 0.0, 1.5);
+         vec3 mcLit = mcCol * clamp(0.30 + mcSceneLum * 1.2, 0.0, 1.05);
          mcLit *= 0.9 + 0.2 * surfH;
          outgoingLight = mix(outgoingLight, mcLit, uMatcapMix) + rimCol * 0.35;
          gl_FragColor = vec4( outgoingLight, diffuseColor.a );`
