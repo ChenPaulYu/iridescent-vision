@@ -1,4 +1,5 @@
 import loadingPage from './loading.html?raw';
+import emberTexture from './textures/generated/matcap-chrome.jpg';
 import { disableBodyScroll, enableBodyScroll, clearAllBodyScrollLocks } from 'body-scroll-lock';
 
 let TextLayer = function(startCallBack) {
@@ -59,6 +60,10 @@ let TextLayer = function(startCallBack) {
         divElement.innerHTML = loadingPage;
         loader = divElement.getElementsByClassName('loader')[0];
         start = document.getElementById('start');
+        // The ember IS the project's material: the liquid-chrome matcap
+        // sphere the goddess will harden into (asset 2B).
+        const seed = document.getElementById('emberSeed');
+        if (seed) seed.style.backgroundImage = `url(${emberTexture})`;
         //.className = "aClassName";
         console.log(loader);
     }

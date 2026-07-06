@@ -28,15 +28,22 @@
     width: 9vmin;
     height: 9vmin;
     border-radius: 50%;
+    /* Fallback gradient; TextLayer swaps in the liquid-chrome matcap
+       (the very material the goddess hardens into) as the sphere. */
     background: radial-gradient(circle at 42% 38%,
         rgba(255, 248, 255, 0.95) 0%,
         rgba(216, 181, 255, 0.85) 28%,
         rgba(150, 90, 220, 0.55) 58%,
         rgba(60, 25, 100, 0.18) 78%,
         rgba(0, 0, 0, 0) 100%);
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 0 5vmin rgba(168, 122, 255, 0.35),
+                0 0 1.6vmin rgba(226, 198, 255, 0.45);
     filter: blur(0.4px);
     animation: breathe 4.2s infinite ease-in-out,
-               hueDrift 11s infinite linear;
+               hueDrift 11s infinite linear,
+               emberSpin 52s infinite linear;
 }
 
 #titleBlock {
@@ -165,6 +172,11 @@
     35%  { filter: hue-rotate(-24deg) blur(0.4px); } /* toward magenta */
     70%  { filter: hue-rotate(18deg)  blur(0.4px); } /* toward cyan */
     100% { filter: hue-rotate(0deg)   blur(0.4px); }
+}
+
+@keyframes emberSpin {
+    from { rotate: 0deg; }
+    to   { rotate: 360deg; }
 }
 
 @keyframes hintPulse {

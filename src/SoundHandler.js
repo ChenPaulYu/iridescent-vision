@@ -22,6 +22,10 @@ let SoundHandler = function(onProgress){
         loaded += 1;
         onProgress(loaded);
     }).toMaster();
+    // The music breathes in with the ember-ignite / canvas focus-in
+    // (~2.5s) instead of slamming on. Transport timing is untouched —
+    // only the bgm's amplitude envelope.
+    player.fadeIn = 2.8;
     //players.push(player);
     this.playBG = () => {
         startTime = Tone.context.currentTime;
