@@ -17,6 +17,7 @@ import { TextLayer } from './TextLayer';
 import domeImage from './images/gradient.jpeg';
 import { Updater } from './core/Updater';
 import { EventBus } from './core/EventBus';
+import { PostPipeline } from './core/PostPipeline';
 import { getEasing } from './core/easing';
 import { PaletteCoordinator } from './core/PaletteCoordinator';
 
@@ -86,6 +87,7 @@ class IridescentVisionApp {
     this.camera.position.set(0, 10, 50);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height);
     this.renderer.setClearColor('#2c123a');
     this.canvas = this.renderer.domElement;
@@ -96,6 +98,8 @@ class IridescentVisionApp {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enable = true;
+
+    this.post = new PostPipeline(this.renderer, this.scene, this.camera);
 
     this.background = new FiberForestBackground(this.renderer, this.scene);
     this.cosmicDome = new CosmicDome(this.renderer, this.scene);
@@ -781,7 +785,11 @@ class IridescentVisionApp {
     this.lastTime = time;
     if (this.isStarted) {
       this.updater.update(delta);
-      this.renderer.render(this.scene, this.camera);
+      if (this.post) {
+        this.post.render(delta);
+      } else {
+        this.renderer.render(this.scene, this.camera);
+      }
     }
   }
 
@@ -999,6 +1007,7 @@ class IridescentVisionApp {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    if (this.post) this.post.setSize(w, h);
   }
 
   disableZoom() {
