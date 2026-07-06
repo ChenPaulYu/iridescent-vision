@@ -26,6 +26,17 @@ The name of the project is the rule.
 | **Fibers as multi-readable** | The fiber forest reads as roots in Awakening, light columns in Ascension, circuits / synapses in Orbit. Do not add new geometric forms that compete with it. |
 | **Sparkles as starlight** | Sparkles are always microscopic light particles — never snow, never fireworks. Transparent, additive blending, sit behind the mask. |
 
+### MV reference frames (ground truth)
+
+`docs/reference/mv-frames/` holds ten stills from the original music video. When a written rule and the stills disagree, **the stills win.** Beyond the palette table above, they establish four material facts:
+
+1. **Liquid chrome, not pearl.** The goddess head and the floating masses (mv-01, mv-04, mv-09) are molten mirror-chrome: blown-out white speculars, reflections tinted ultraviolet blue / magenta / pale cyan. "Iridescent" here means *chrome reflecting a violet world*, not soft pearl sheen. The GlassSkin refraction phase is the in-app cousin of this material.
+2. **Analog film grain is the baseline, not a garnish.** Every frame carries heavy grain, chromatic aberration, overexposure, or motion blur (mv-05 is almost pure noise). A clean digital render reads as off-style; post grain should be present throughout, heavier than instinct suggests.
+3. **High-key passages exist.** The piece is not uniformly dark: milky lavender fog (mv-07), backlit silk with bokeh flecks (mv-06), and full bleach-outs (mv-02) are legitimate registers. Light sometimes floods the frame rather than punctuating it — but always as lavender/white wash, never warm.
+4. **Skin is the only warm color.** The goddess's brown skin (mv-04, mv-07) is the sole warm element in the entire piece — this is *why* the palette bans warm hues everywhere else. Generated assets must contain zero orange / yellow / red.
+
+mv-10 (indigo fiber curtain) is the direct reference for the fiber forest; mv-08 (electric halo) for ring-like punctuation glow.
+
 ### What to avoid
 
 - Stroboscopic flicker (replaced in the soft → gravity transition for this reason).
