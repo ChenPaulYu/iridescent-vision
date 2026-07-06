@@ -1,7 +1,8 @@
 <div id='void'></div>
 <div id='titleBlock'>
     <div class='title'>IRIDESCENT VISION</div>
-    <div class='subtitle'>a tale of transhumanism &middot; collective memory</div>
+    <div class='subtitle'>from primal root to post-tech light, a goddess remade by every age we believed in</div>
+    <div class='question'>what comes next &mdash; or is it a vision we keep dreaming again?</div>
 </div>
 <div class='loader'>
     <div class='ember' id='emberSeed'></div>
@@ -40,7 +41,7 @@
     background-position: center;
     /* Primordial murk: multiply against deep plum kills the clinical
        shine, wider soft halo instead of a bright rim. */
-    background-color: #8b78b8;
+    background-color: #a476ff;
     background-blend-mode: multiply;
     box-shadow: 0 0 7vmin rgba(150, 105, 235, 0.22),
                 0 0 2vmin rgba(210, 180, 250, 0.24);
@@ -53,7 +54,7 @@
 #titleBlock {
     position: fixed;
     left: 0;
-    top: 27%;
+    top: 18%;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -118,12 +119,30 @@
 
 .subtitle {
     margin-top: 1.6vmin;
+    max-width: 68vmin;
+    padding: 0 3vmin;
+    text-align: center;
     color: rgba(196, 170, 235, 0.45);
     font-family: helvetica, sans-serif;
     font-weight: 100;
     font-size: clamp(9px, 1.3vmin, 13px);
-    letter-spacing: 0.32em;
-    text-indent: 0.32em;
+    letter-spacing: 0.1em;
+    line-height: 1.7;
+}
+
+.question {
+    margin-top: 1vmin;
+    margin-bottom: 4vmin;
+    max-width: 72vmin;
+    padding: 0 3vmin;
+    text-align: center;
+    color: rgba(170, 145, 210, 0.32);
+    font-family: helvetica, sans-serif;
+    font-style: italic;
+    font-weight: 100;
+    font-size: clamp(8px, 1.15vmin, 12px);
+    letter-spacing: 0.06em;
+    line-height: 1.6;
 }
 
 .hint {
