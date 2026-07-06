@@ -232,16 +232,17 @@ var SoftVolume = function(scene, mesh, isGltf, soundHandler) {
         //     shininess: 0
             
         // } );
+        // Crack-net look kept (it IS the Awakening identity), but the
+        // khaki/olive palette violated the iridescent rule — re-tinted
+        // to deep plum body with a lavender inner glow (style-anchor).
         let MeshMaterial = new THREE.MeshPhongMaterial( {
-            // color: 0x624eba,
-            color: 0x47443b,
-            // emissive: 0xc325e,
-            emissive: 0x7f703b,
-            // specular: 0x441833,
+            color: 0x241833,
+            emissive: 0x54428a,
+            specular: 0x9d80e0,
             map: texture,
             side: THREE.DoubleSide,
             alphaTest: 0.7,
-            shininess: 0
+            shininess: 18
 
         } );
         

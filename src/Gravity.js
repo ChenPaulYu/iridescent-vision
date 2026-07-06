@@ -203,18 +203,12 @@ var Gravity = function (scene, mesh, soundHandler) {
 
     
     let changeTexture = () => {
-        let MeshMaterial = new THREE.MeshPhysicalMaterial({
-            // color: 0xebaf09,
-            color: 0xffffff,
-            emissive: 0x353535,
-            roughness: 0.5,
-            metalness: 1,
-            reflectivity: 1
-
-        });
-
-        this.mesh.material = MeshMaterial;
-
+        // Swap to the liquid-chrome matcap material (built in app.js,
+        // docs/asset-brief Asset 2B) instead of the old plain
+        // white-metal — the tool-age goddess hardens into chrome.
+        if (mesh.userData.chromeMaterial) {
+            this.mesh.material = mesh.userData.chromeMaterial;
+        }
     }
 
 

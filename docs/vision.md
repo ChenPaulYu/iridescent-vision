@@ -104,9 +104,15 @@ All seven layers per `plan/cosmic-dome.md`:
   gravity2Glass (0.62), peaks at finalHeadUp (0.78), off at Activity.
   Replaces the flat clear color and the off-palette gradient.jpeg.
   GlassSkin refracts it (cube camera far plane 900, MixOperation).
-- **Mask matcaps** — rubber-gel (Awakening) → liquid-chrome (Ascension)
-  cross-faded at the t=29.5 flash; tri-planar surface height map breaks
-  speculars; matcap scaled by scene light so MouseLight still sculpts.
+- **Mask material relay** (important architecture fact): SoftVolume,
+  Gravity and GlassSkin each swap `mesh.material` for their beat —
+  anything set on the base material only shows in the gaps. Current
+  relay: SoftVolume crack-net re-tinted to plum/lavender (Awakening) →
+  Gravity swaps in the dedicated liquid-chrome matcap ShaderMaterial
+  from `app.js:buildChromeMatcapMaterial` (Ascension) → GlassSkin cube
+  refraction (Orbit). Tri-planar surface height map breaks speculars in
+  both matcap paths. The rubber matcap (Asset 2A) lives on the resting
+  base material only — currently no beat exposes it.
 - **Generated textures** (`src/textures/generated/`, briefs + accepted
   candidates in `docs/asset-brief.md` / `docs/reference/`) — dome, two
   matcaps, height map, particle sprite (dust/burst/sparkles), silk veil

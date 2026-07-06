@@ -89,15 +89,17 @@ const fiberVertexShader = /* glsl */`
     // follows a cubic curve with a per-fibre random control point,
     // bends downward and outward like real roots.
     float seedAngle = instSeed.x * 6.2832;
-    float seedRadius = 2.0 + instSeed.z * 5.0;
-    // Source point: wider top cluster — looks like multiple roots emerging
+    // Wider, deeper source cluster: the old tight top-center knot hung
+    // its strands straight across the goddess's face.
+    float seedRadius = 5.0 + instSeed.z * 9.0;
     vec3 rootsTop = vec3(
       cos(seedAngle) * seedRadius,
-      uLength * 0.36 + sin(instSeed.y * 6.2832) * 3.0,
-      sin(seedAngle) * seedRadius - 4.0
+      uLength * 0.42 + sin(instSeed.y * 6.2832) * 3.0,
+      sin(seedAngle) * seedRadius - 30.0
     );
-    // Endpoint: pushed further out so curves are more dramatic
-    vec3 rootsEnd = vec3(instOffset.x * 1.8, -uLength * 0.45, instOffset.y * 1.8 + 4.0);
+    // Endpoint: pushed further out so curves are more dramatic, kept
+    // behind the mask plane
+    vec3 rootsEnd = vec3(instOffset.x * 1.8, -uLength * 0.45, instOffset.y * 1.8 - 8.0);
     // Control point: bends way out then sweeps back inward
     float ctrlAngle = instSeed.y * 6.2832;
     float ctrlPush = 10.0 + instSeed.z * 14.0;
@@ -124,6 +126,9 @@ const fiberVertexShader = /* glsl */`
     rootsPos.x += sin(t * 22.0 + instSeed.x * 6.0) * 0.18;
     rootsPos.z += cos(t * 24.0 + instSeed.y * 6.0) * 0.18;
     rootsPos.y += yShift * 0.35;
+    // Bezier bellies bulge toward the camera; pin the whole curtain
+    // behind the mask plane (mask sits near z = 7).
+    rootsPos.z = min(rootsPos.z, -6.0);
     // Width tapers from thick base to thin tip
     float widthTaper = mix(1.6, 0.4, t);
     rootsPos.x += position.x * instWidth * widthTaper;
@@ -441,7 +446,9 @@ class FiberForestBackground {
       const upper = vertical >= 0.0 ? 1 : -1;
       const flare = Math.pow(Math.abs(vertical), 0.55);
       const outer = this.options.innerRadius + this.options.radiusSpread * (0.9 + 0.2 * Math.random());
-      const inner = this.options.innerRadius * (0.45 + 0.2 * Math.random());
+      // Keep a clear window around the goddess: fibers used to spawn at
+      // |x| ≈ 2-3 and hung directly over the mask like a curtain.
+      const inner = this.options.innerRadius * (1.9 + 0.4 * Math.random());
       const radius = inner + (1.0 - flare) * (outer - inner);
       const x = (radius + 0.5 * Math.sin(vertical * 2.4)) * upper;
       const z = vertical * this.options.radiusSpread * 0.85 + (Math.random() - 0.5);

@@ -422,18 +422,18 @@ class IridescentVisionApp {
   }
 
   applyMaskMaterial(mesh) {
+    // r110 notes: transmission/thickness/sheenRoughness don't exist in
+    // this three version, and a numeric `sheen` poisons the uniform
+    // update with NaN (r110 expects a Color) — which silently made the
+    // whole mask body invisible. Keep to r110-supported params only.
     const material = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color('#2a1031'),
       metalness: 0.2,
       roughness: 0.25,
       clearcoat: 0.4,
       clearcoatRoughness: 0.15,
-      transmission: 0.12,
-      thickness: 0.85,
-      sheen: 1.0,
-      sheenRoughness: 0.6,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.985,
     });
     const rimColor = new THREE.Color('#d8b5ff');
 
@@ -511,15 +511,17 @@ class IridescentVisionApp {
          vec3 mcY = cross( mcViewDir, mcX );
          vec2 mcUv = vec2( dot( mcX, normal ), dot( mcY, normal ) ) * 0.495 + 0.5;
          mcUv += (surfH - 0.5) * uSurfaceAmount;
-         vec3 mcRub = texture2D(uMatcapRubber, mcUv).rgb;
+         // Rubber matcap is the darkest asset by design (docs/asset-brief);
+         // on the near-black stage it needs gain to read as plum-lavender.
+         vec3 mcRub = texture2D(uMatcapRubber, mcUv).rgb * 1.55;
          vec3 mcChr = texture2D(uMatcapChrome, mcUv).rgb;
          vec3 mcCol = mix(mcRub, mcChr, uMatcapBlend);
          // Scale the matcap by scene lighting so MouseLight's spotlight
          // still sculpts the face during Awakening.
          float mcSceneLum = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
-         vec3 mcLit = mcCol * clamp(0.30 + mcSceneLum * 1.2, 0.0, 1.05);
+         vec3 mcLit = mcCol * clamp(0.45 + mcSceneLum * 1.1, 0.0, 1.0);
          mcLit *= 0.9 + 0.2 * surfH;
-         outgoingLight = mix(outgoingLight, mcLit, uMatcapMix) + rimCol * 0.35;
+         outgoingLight = mix(outgoingLight, mcLit, uMatcapMix);
          gl_FragColor = vec4( outgoingLight, diffuseColor.a );`
       );
       material.userData.shader = shader;
@@ -531,8 +533,69 @@ class IridescentVisionApp {
     };
     mesh.material = material;
     this.maskMaterial = material;
+    mesh.userData.chromeMaterial = this.buildChromeMatcapMaterial(
+      matcapChrome, surfaceTex
+    );
     this.attachOrnamentShell(mesh);
     if (this.palette) this.palette.broadcast();
+  }
+
+  // Dedicated liquid-chrome matcap material for the Gravity beat.
+  // A plain ShaderMaterial (no three lighting pipeline) — deterministic
+  // and cheap; Gravity swaps it in at the soft2Gravity flash and swaps
+  // back before GlassSkin takes over.
+  buildChromeMatcapMaterial(matcapTexture, surfaceTexture) {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uMatcap: { value: matcapTexture },
+        uSurfaceTex: { value: surfaceTexture },
+        uSurfaceScale: { value: 0.16 },
+        uSurfaceAmount: { value: 0.05 },
+      },
+      vertexShader: /* glsl */`
+        varying vec3 vN;
+        varying vec3 vV;
+        varying vec3 vP;
+        void main() {
+          vN = normalize(normalMatrix * normal);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vV = -mv.xyz;
+          vP = position;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform sampler2D uMatcap;
+        uniform sampler2D uSurfaceTex;
+        uniform float uSurfaceScale;
+        uniform float uSurfaceAmount;
+        varying vec3 vN;
+        varying vec3 vV;
+        varying vec3 vP;
+
+        float surfaceHeight(vec3 p, vec3 n) {
+          vec3 an = abs(n);
+          an /= (an.x + an.y + an.z + 0.0001);
+          float hx = texture2D(uSurfaceTex, p.yz * uSurfaceScale).r;
+          float hy = texture2D(uSurfaceTex, p.xz * uSurfaceScale).r;
+          float hz = texture2D(uSurfaceTex, p.xy * uSurfaceScale).r;
+          return hx * an.x + hy * an.y + hz * an.z;
+        }
+
+        void main() {
+          vec3 n = normalize(vN);
+          vec3 viewDir = normalize(vV);
+          vec3 x = normalize(vec3(viewDir.z, 0.0, -viewDir.x));
+          vec3 y = cross(viewDir, x);
+          float h = surfaceHeight(vP, n);
+          vec2 uv = vec2(dot(x, n), dot(y, n)) * 0.495 + 0.5;
+          uv += (h - 0.5) * uSurfaceAmount;
+          vec3 col = texture2D(uMatcap, uv).rgb;
+          col *= 0.9 + 0.2 * h;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
   }
 
   tweenMatcapBlend(target, durationMs = 1500, easingName = 'easeOutQuart') {
