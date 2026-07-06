@@ -1,10 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f0d6ff" />
-      <stop offset="100%" stop-color="#6b5fd0" />
+    <linearGradient id="face" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#e6cfff" />
+      <stop offset="45%" stop-color="#9d6cff" />
+      <stop offset="100%" stop-color="#5a3aa8" />
     </linearGradient>
+    <radialGradient id="rim" cx="0.5" cy="0.38" r="0.65">
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="88%" stop-color="#d9b8ff" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#7ef0e8" stop-opacity="0.25" />
+    </radialGradient>
   </defs>
-  <rect width="64" height="64" rx="12" fill="url(#g)" />
-  <circle cx="32" cy="32" r="18" fill="rgba(255,255,255,0.35)" />
+
+  <!-- deep purple-black void -->
+  <rect width="64" height="64" rx="13" fill="#0d0716" />
+
+  <!-- goddess mask silhouette: an almond/vesica face -->
+  <path
+    d="M32 8
+       C 43 8, 50 18, 50 32
+       C 50 46, 43 57, 32 57
+       C 21 57, 14 46, 14 32
+       C 14 18, 21 8, 32 8
+       Z"
+    fill="url(#face)"
+  />
+
+  <!-- iridescent rim light, echoing app.js's rim shader -->
+  <path
+    d="M32 8
+       C 43 8, 50 18, 50 32
+       C 50 46, 43 57, 32 57
+       C 21 57, 14 46, 14 32
+       C 14 18, 21 8, 32 8
+       Z"
+    fill="url(#rim)"
+  />
+
+  <!-- third-eye seed, closed -->
+  <ellipse cx="32" cy="26" rx="2.4" ry="1.6" fill="#2a1031" opacity="0.55" />
 </svg>
