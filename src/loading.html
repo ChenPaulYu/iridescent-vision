@@ -38,9 +38,13 @@
         rgba(0, 0, 0, 0) 100%);
     background-size: cover;
     background-position: center;
-    box-shadow: 0 0 5vmin rgba(168, 122, 255, 0.35),
-                0 0 1.6vmin rgba(226, 198, 255, 0.45);
-    filter: blur(0.4px);
+    /* Primordial murk: multiply against deep plum kills the clinical
+       shine, wider soft halo instead of a bright rim. */
+    background-color: #8b78b8;
+    background-blend-mode: multiply;
+    box-shadow: 0 0 7vmin rgba(150, 105, 235, 0.22),
+                0 0 2vmin rgba(210, 180, 250, 0.24);
+    filter: blur(0.9px);
     animation: breathe 4.2s infinite ease-in-out,
                hueDrift 11s infinite linear,
                emberSpin 52s infinite linear;
@@ -168,10 +172,10 @@
 }
 
 @keyframes hueDrift {
-    0%   { filter: hue-rotate(0deg)   blur(0.4px); }
-    35%  { filter: hue-rotate(-24deg) blur(0.4px); } /* toward magenta */
-    70%  { filter: hue-rotate(18deg)  blur(0.4px); } /* toward cyan */
-    100% { filter: hue-rotate(0deg)   blur(0.4px); }
+    0%   { filter: hue-rotate(0deg)   brightness(0.92) blur(0.9px); }
+    35%  { filter: hue-rotate(-24deg) brightness(0.85) blur(0.9px); } /* toward magenta */
+    70%  { filter: hue-rotate(18deg)  brightness(0.97) blur(0.9px); } /* toward cyan */
+    100% { filter: hue-rotate(0deg)   brightness(0.92) blur(0.9px); }
 }
 
 @keyframes emberSpin {
