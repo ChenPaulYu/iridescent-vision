@@ -31,6 +31,7 @@ import { TextLayer } from './TextLayer';
 import matcapRubberPath from './textures/generated/matcap-rubber.jpg';
 import matcapChromePath from './textures/generated/matcap-chrome.jpg';
 import surfaceHeightPath from './textures/generated/surface-height.jpg';
+import posterPath from './images/poster.jpg';
 import { Updater } from './core/Updater';
 import { EventBus } from './core/EventBus';
 import { PostPipeline } from './core/PostPipeline';
@@ -1028,6 +1029,9 @@ class IridescentVisionApp {
   }
 
   handleLoading() {
+    if (this.textLayer && this.textLayer.setProgress) {
+      this.textLayer.setProgress((this.soundLoad + this.managerLoad) / this.totalLoad);
+    }
     if (this.soundLoad + this.managerLoad < this.totalLoad) return;
     this.warmShaders();
     if (this.textLayer) this.textLayer.addButton('CLICK');
@@ -1310,6 +1314,13 @@ class IridescentVisionApp {
       this.canvas.style.filter = 'blur(0px)';
     }
     if (this.soundHandler) this.soundHandler.start();
+    // Warm the finale's 4.6MB poster into browser cache during Act 1's
+    // quiet — Activity's TextureLoader then hits cache instead of the
+    // network mid-piece.
+    setTimeout(() => {
+      const img = new Image();
+      img.src = posterPath;
+    }, 9000);
   }
 }
 

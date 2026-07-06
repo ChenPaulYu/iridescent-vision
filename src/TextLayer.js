@@ -8,6 +8,17 @@ let TextLayer = function(startCallBack) {
     disableBodyScroll(document.body);
 
 
+    // Real load progress drives the seed's size — waiting reads as the
+    // light gathering strength, not a frozen screen.
+    this.setProgress = (p) => {
+        const seed = document.getElementById('emberSeed');
+        if (!seed) return;
+        const clamped = Math.max(0, Math.min(1, p));
+        const size = (4.5 + 6.5 * clamped).toFixed(2) + 'vmin';
+        seed.style.width = size;
+        seed.style.height = size;
+    }
+
     this.addButton = (text) => {
         start.className = 'start';
         loader.className = 'fadeout';
@@ -16,6 +27,8 @@ let TextLayer = function(startCallBack) {
             document.getElementById('chrome').className += ' fadeout';
             const voidEl = document.getElementById('void');
             if (voidEl) voidEl.className = 'fadeout';
+            const titleEl = document.getElementById('titleBlock');
+            if (titleEl) titleEl.className = 'fadeout';
             // Remove the whole overlay once faded so it never blocks
             // the canvas or pointer events.
             setTimeout(() => { divElement.style.display = 'none'; }, 1400);

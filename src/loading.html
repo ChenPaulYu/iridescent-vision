@@ -1,10 +1,12 @@
 <div id='void'></div>
-<div class='loader'>
-    <div class='ember'></div>
-</div>
-<div id='start'>
+<div id='titleBlock'>
     <div class='title'>IRIDESCENT VISION</div>
     <div class='subtitle'>a tale of transhumanism &middot; collective memory</div>
+</div>
+<div class='loader'>
+    <div class='ember' id='emberSeed'></div>
+</div>
+<div id='start'>
     <div class='ember big'></div>
     <div class='hint'>touch the light</div>
 </div>
@@ -38,6 +40,19 @@
                hueDrift 11s infinite linear;
 }
 
+#titleBlock {
+    position: fixed;
+    left: 0;
+    top: 27%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    animation: appear 2.4s ease forwards;
+    pointer-events: none;
+}
+
 .loader {
     position: fixed;
     inset: 0;
@@ -47,9 +62,14 @@
     z-index: 9;
 }
 
+/* The seed grows with real load progress (TextLayer.setProgress
+   drives width/height — the breathe keyframes own transform). */
 .loader .ember {
+    width: 4.5vmin;
+    height: 4.5vmin;
     opacity: 0.55;
     animation-duration: 2.6s, 11s; /* faster breath = still loading */
+    transition: width 0.6s ease, height 0.6s ease;
 }
 
 /* --- start state: the whole screen is the invitation -------------- */
@@ -67,6 +87,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding-top: 6vmin; /* sit the ember just below the title block */
     animation: appear 1.6s ease forwards;
 }
 
