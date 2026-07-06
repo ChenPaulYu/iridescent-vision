@@ -1,3 +1,16 @@
+/**
+ * app.js — orchestrator: timeline, mask material, scene wiring (★).
+ *
+ * Owns the Tone-driven narrative schedule (initSound), the mask's
+ * material narrative (applyMaskMaterial: physical base + rim + dual
+ * matcap rubber→chrome + tri-planar surface relief; attachOrnamentShell
+ * for the mehndi/girih shell), and creates/retires every subsystem per
+ * beat. All timing flows from SoundHandler cues — never wall-clock.
+ *
+ * Reads: FiberForestBackground · CosmicDome · EnvironmentDome ·
+ * SoftVolume/Gravity/GlassSkin/HeadMove/Activity · core/PostPipeline ·
+ * core/PaletteCoordinator · textures/generated/*
+ */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';

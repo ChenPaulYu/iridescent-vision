@@ -53,7 +53,7 @@ const domeFragmentShader = /* glsl */`
     // looks up), and the nadir fades too — HeadMove sends the camera
     // diving, and an unshaded lower hemisphere whites the frame out.
     float zenith = smoothstep(0.15, 0.95, vUv.y);
-    color *= mix(1.0, 0.45, zenith * 0.8);
+    color *= mix(1.0, 0.58, zenith * 0.8);
     float nadir = smoothstep(0.45, 0.05, vUv.y);
     color *= mix(1.0, 0.35, nadir);
 

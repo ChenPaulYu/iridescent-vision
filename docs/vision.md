@@ -92,6 +92,26 @@ All seven layers per `plan/cosmic-dome.md`:
 - **§2 Shared easing** — `core/easing.js` exports `easeInOutCubic`, `easeOutQuart`, `easeOutExpo`, `spikeAndReturn`. Palette tween and ornament tween accept named curves; the four Twin Moments use the documented profiles.
 - **§3 Shared particle pool** — `cosmicDome.spawnDust({position, velocity, count, tint, lifetime, scale})` writes into the 600-slot burst sub-system. The GoldFlakes emitter is the first real caller; mask-source and dome-source dust share one rendering pipeline.
 
+### Visual quality pass (feature/visual-quality-pass)
+
+- **Post pipeline** (`core/PostPipeline.js`) — retina pixel ratio, half-res
+  UnrealBloom (threshold 0.72 so additive stacks don't snowball), grade
+  pass: ACES + shadow-deepening S-curve + animated luminance-weighted
+  film grain + vignette + subtle chromatic aberration. The analog-grain
+  baseline from style-anchor's MV reference frames lives here.
+- **EnvironmentDome** (`EnvironmentDome.js`) — generated dome texture
+  sampled as luminance, recolored live by PaletteCoordinator; enters at
+  gravity2Glass (0.62), peaks at finalHeadUp (0.78), off at Activity.
+  Replaces the flat clear color and the off-palette gradient.jpeg.
+  GlassSkin refracts it (cube camera far plane 900, MixOperation).
+- **Mask matcaps** — rubber-gel (Awakening) → liquid-chrome (Ascension)
+  cross-faded at the t=29.5 flash; tri-planar surface height map breaks
+  speculars; matcap scaled by scene light so MouseLight still sculpts.
+- **Generated textures** (`src/textures/generated/`, briefs + accepted
+  candidates in `docs/asset-brief.md` / `docs/reference/`) — dome, two
+  matcaps, height map, particle sprite (dust/burst/sparkles), silk veil
+  (tunnel layer).
+
 ## Open Threads
 
 - Final visual verification (full timeline through agent-browser) deferred this session — the daemon kept wedging mid-sequence. Most layers verified individually; final end-to-end pass still pending.

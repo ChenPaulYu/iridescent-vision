@@ -23,7 +23,16 @@ var GlassSkin = function(scene, mesh) {
         this.scene.add(cubeCamera);
     
         cubeCamera.renderTarget.texture.mapping = THREE.CubeRefractionMapping;
-        cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff, envMap: cubeCamera.renderTarget.texture, refractionRatio: 0.93} );
+        // MixOperation shows the refracted environment directly instead
+        // of multiplying it with scene lighting — with the scene's single
+        // dim directional light, Multiply rendered the glass near-black.
+        cubeMaterial = new THREE.MeshPhongMaterial( {
+            color: 0xffffff,
+            envMap: cubeCamera.renderTarget.texture,
+            refractionRatio: 0.93,
+            combine: THREE.MixOperation,
+            reflectivity: 0.92,
+        } );
         this.mesh.material = cubeMaterial;
     }
     

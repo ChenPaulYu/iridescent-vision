@@ -1,3 +1,14 @@
+/**
+ * FiberForestBackground.js — Awakening/Ascension environment (★).
+ *
+ * Instanced fiber strands (roots↔streams via uMode), a Shadertoy-style
+ * tunnel cylinder layered with photographed silk-drape luminance, and
+ * sprite-based sparkles. Shares uVerticalScroll across all three so the
+ * whole background rises together; speedup ramp drives the climax.
+ *
+ * Reads: three · textures/generated/particle-sprite.png ·
+ * textures/generated/silk-veil.jpg · PaletteCoordinator (setPalette)
+ */
 import * as THREE from 'three';
 import spritePath from './textures/generated/particle-sprite.png';
 import silkPath from './textures/generated/silk-veil.jpg';

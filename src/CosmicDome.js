@@ -1,3 +1,13 @@
+/**
+ * CosmicDome.js — seven-layer sacred cosmos around the goddess (★).
+ *
+ * Dust breath + burst pool (shared particle pipeline, ink-fleck sprite),
+ * star-map/astrolabe rings, Sri Yantra bloom, mantra drift, tapestry,
+ * HeadMove resonance and Layer-7 decomposition. See plan/cosmic-dome.md.
+ *
+ * Reads: three · textures/generated/particle-sprite.png ·
+ * PaletteCoordinator (setPalette) · app.js beat cues
+ */
 import * as THREE from 'three';
 import spritePath from './textures/generated/particle-sprite.png';
 
