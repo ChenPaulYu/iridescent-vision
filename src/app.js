@@ -116,11 +116,17 @@ class IridescentVisionApp {
     this.canvas.style.filter = 'blur(26px)';
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    // User input never orbits the camera — the frame is a composed
-    // ritual shot. (Activity's autoRotate still works: controls.update()
-    // applies it regardless of `enabled`.) Dragging in Act 1 belongs to
-    // SoftVolume's pull interaction alone.
-    this.controls.enabled = false;
+    // The frame is a composed ritual shot — dragging never orbits or
+    // pans the camera (that's SoftVolume's pull interaction alone), but
+    // scroll/pinch zoom stays available for the audience to lean in.
+    // `enabled` must stay true or zoom dies with it; Activity re-enables
+    // rotate/pan for its own autoRotate finale.
+    this.controls.enabled = true;
+    this.controls.enableRotate = false;
+    this.controls.enablePan = false;
+    this.controls.enableZoom = true;
+    this.controls.minDistance = 20;
+    this.controls.maxDistance = 140;
     this.controls.target.set(0, 4, 0);
     this.controls.update();
 
