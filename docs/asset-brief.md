@@ -82,6 +82,27 @@ The mask's material progression **is** the narrative spine (style-anchor §2): s
 
 **Reference stills:** mv-01, mv-04, mv-09 (chrome material), mv-03 (chrome head against violet).
 
+### Asset 2C — Magnetite matcap (Ascension, replaces the procedural-only look) — ACCEPTED 2026-07-06
+
+**Why:** `buildMagnetFieldMaterial` (app.js) is currently 100% procedural — a flat multiplied base color with meridian field-lines and a fresnel rim on top, no actual surface material. That fixed legibility (you can now see the mask's form) but the material itself still reads as flat/synthetic rather than a real object. This matcap gives it an actual material identity — the field-line/fresnel shader logic stays, layered on top of this texture instead of a flat color.
+
+**Prompt (v2 — v1 generated a crushed-glass/amethyst-geode look: too many small sharp glinting facets, reading as a cut gemstone rather than dull rock, and visually duplicating the Orbit glass-fracture shader's faceted-crack language):**
+
+> A matcap material-capture sphere: a single perfect ball centered on a pure black background, filling almost the entire frame, photographed straight-on. The ball is a rough block of dark magnetite iron ore — a dense, dull natural mineral. NOT polished metal, NOT chrome, and critically NOT a faceted gemstone or cut crystal. The surface is matte and granular like weathered rock or unpolished ore: fine-grained, slightly porous, almost no specular sparkle — think rough sandpaper-textured stone, not cut glass or a geode. Only one or two very soft, broad, low-contrast patches of dull pale-violet sheen break the surface, spread wide and hazy rather than as tiny glinting points. The material is deep charcoal-black to near-black violet-grey, darkening to full black at the base. A faint cool ultraviolet undertone sits in the shadow regions, like a mineral hinting at latent magnetic energy rather than glowing outright. No mirror reflections, no crystal facets, no glassy sparkle, no readable environment, no wet gloss, no warm tones anywhere.
+>
+> **Negative:** chrome, mirror finish, wet gloss, polished metal, faceted crystal, cut gemstone, geode, amethyst, quartz cluster, crushed glass, sparkle, glitter, glinting highlights, diamond facets, blown-white highlight, orange, yellow, red, green, warm tones, smooth plastic, digital pattern, fractal texture, cellular/voronoi look, text, watermark, second sphere, cropped sphere, bright/high-key overall exposure.
+
+**Acceptance checklist:**
+
+- [ ] Exactly one sphere, fully inside frame, centered, pure black background.
+- [ ] Overall dark and restrained — this should be the darkest, dullest matcap in the whole set (duller than 2A rubber). If the highlight blows out to white or looks shiny/wet, reject — that's chrome, not magnetite, and duplicates 2B.
+- [ ] **No glassy/crystal sparkle** — if the surface shows many small bright glinting facets (reads like broken glass, a cut gemstone, or an amethyst geode), reject. This was the specific failure of v1: it duplicated the Orbit glass-fracture shader's faceted-crack visual language, which needs to stay unique to that beat.
+- [ ] Visible rough/granular texture on close inspection, but soft and matte — a few broad hazy sheen patches, not a flat smooth gradient and not sharp glints.
+- [ ] Palette strictly violet / blue-grey / black — no warm tones.
+- [ ] Light from above, darkest at the base — consistent with the rest of the mask's matcap lighting convention (2A, 2B).
+
+**Reference stills:** mv-01, mv-09 (dark mineral/metal surfaces at low exposure).
+
 ---
 
 ## Asset 3 — Surface detail height map

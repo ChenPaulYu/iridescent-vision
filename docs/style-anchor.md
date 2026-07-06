@@ -23,7 +23,7 @@ The name of the project is the rule.
 | **Palette** | Deep purple-black base. Magenta / lavender / pink as tip. Pearl-white / pale lavender / pale cyan as glow. Monochromatic-iridescent throughout. **No primary colors. No saturated yellow or green.** |
 | **Three states of materiality** | (a) **Soft translucent gel** (`SoftVolume`) → (b) **Refractive glass** (`GlassSkin`) → (c) **Iridescent rim** (mask `MeshPhysicalMaterial` with the rim-shader injection in `app.js:applyMaskMaterial`). The progression itself is the narrative: body → spirit → consciousness. |
 | **Glow over edges** | Everything glows, blurs, or fades at the edges. **No hard outlines, no flat color blocks, no geometric silhouettes** other than the mask, which is the anchor. |
-| **Fibers as multi-readable** | The fiber forest reads as roots in Awakening, light columns in Ascension, circuits / synapses in Orbit. Do not add new geometric forms that compete with it. |
+| **Tunnel/veil as the environment, not a foreground motif** | Awakening/Ascension are the *same* swirling tunnel + silk-veil luminance intensifying (calm/dim → fast/bright), not a geometric curtain or strand system placed in front of the goddess. An earlier fiber-strand curtain was dropped 2026-07-06 for reading as a rigid door-frame; do not reintroduce foreground geometric forms that compete with the mask. |
 | **Sparkles as starlight** | Sparkles are always microscopic light particles — never snow, never fireworks. Transparent, additive blending, sit behind the mask. |
 
 ### MV reference frames (ground truth)
@@ -35,7 +35,7 @@ The name of the project is the rule.
 3. **High-key passages exist.** The piece is not uniformly dark: milky lavender fog (mv-07), backlit silk with bokeh flecks (mv-06), and full bleach-outs (mv-02) are legitimate registers. Light sometimes floods the frame rather than punctuating it — but always as lavender/white wash, never warm.
 4. **Skin is the only warm color.** The goddess's brown skin (mv-04, mv-07) is the sole warm element in the entire piece — this is *why* the palette bans warm hues everywhere else. Generated assets must contain zero orange / yellow / red.
 
-mv-10 (indigo fiber curtain) is the direct reference for the fiber forest; mv-08 (electric halo) for ring-like punctuation glow.
+mv-10 (indigo fiber curtain) was the original reference for the Awakening environment, but the in-app instanced-strand attempt never matched its softness/density and was dropped in favor of the tunnel+silk-veil alone (2026-07-06); mv-08 (electric halo) for ring-like punctuation glow.
 
 ### What to avoid
 

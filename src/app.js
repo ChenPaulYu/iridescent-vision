@@ -29,6 +29,7 @@ import { Gravity } from './Gravity';
 import { SoundHandler } from './SoundHandler';
 import { TextLayer } from './TextLayer';
 import matcapRubberPath from './textures/generated/matcap-rubber.jpg';
+import matcapMagnetitePath from './textures/generated/matcap-magnetite.jpg';
 import surfaceHeightPath from './textures/generated/surface-height.jpg';
 import posterPath from './images/poster.jpg';
 import { Updater } from './core/Updater';
@@ -101,10 +102,21 @@ class IridescentVisionApp {
 
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     // Act 1 "curtain sanctuary" framing (mockup A): wide enough that the
-    // parted fiber curtain cocoons the goddess with dark void around.
+    // tunnel/veil environment cocoons the goddess with dark void around.
     this.camera.position.set(0, 6, 74);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    // logarithmicDepthBuffer: the mask mesh (mask3.gltf) has two
+    // very-slightly-separated shell faces that z-fight under the standard
+    // non-linear depth buffer at the mask's actual camera distance (tens of
+    // units) — that z-fighting, not any material/shader bug, was the real
+    // cause of the "weird grid" seen on the mask surface across every beat
+    // (confirmed 2026-07-06: the pattern matched the mesh's own wireframe
+    // exactly and vanished with depthTest disabled). A log depth buffer
+    // spreads precision evenly across the whole near/far range instead of
+    // crushing it at distance. Custom mask ShaderMaterials must manually
+    // include the logdepthbuf_vertex/fragment chunks — see
+    // buildMatcapMaterial / buildMagnetFieldMaterial.
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height);
     this.renderer.setClearColor('#2c123a');
@@ -179,7 +191,6 @@ class IridescentVisionApp {
       if (this.softVolume) this.softVolume.enable();
       if (this.background && !this.background.enabled) {
         this.background.enable();
-        this.background.setMode(1.0);
       }
       // Faint dome fog from the very first breath — Act 1 mockup F:
       // the womb opening reveals depth, not flat black.
@@ -206,16 +217,35 @@ class IridescentVisionApp {
         // Material narrative beat: soft rubber body magnetizes behind
         // the flash — SoftVolume -> Gravity swaps mesh.material from
         // rubberMaterial to magnetMaterial at this exact moment.
+        // The independent crystal-shell ornament hands its role to the
+        // magnet material's own pole/pulse glow — fade the shell out so
+        // it stops competing with the field lines (ornament redesign).
+        this.tweenOrnament({ reveal: 0, thirdEye: 0 }, 1800, 'easeInOutCubic');
 
         if (this.softVolume) {
           this.softVolume.disable();
           this.softVolume.dispose();
           this.softVolume = undefined;
         }
-        if (this.gravity) this.gravity.enable();
+        if (this.gravity) {
+          this.gravity.enable();
+          // Gravity.postLoop pulls every ball toward center every frame
+          // and only ever scatters them on a real click/dblclick
+          // (applyForce/applyAllForce in Gravity.js) — during normal
+          // passive playback nothing ever fires that, so the balls just
+          // clump onto one spot on the mask instead of orbiting (reported
+          // 2026-07-06: "球散的好不平均"). Auto-pulse the scatter impulse
+          // periodically for the whole Ascension window so they keep
+          // circulating without needing a real click.
+          this.gravity.applyN = true;
+          if (this._gravityScatterInterval) clearInterval(this._gravityScatterInterval);
+          this._gravityScatterInterval = setInterval(() => {
+            if (this.gravity) this.gravity.applyN = true;
+          }, 2600);
+        }
         if (this.background) {
           this.background.direction = 'up';
-          this.background.setForestIntensity(0.18, 3500);
+          this.background.setVeilIntensity(0.5, 3500);
         }
         if (this.cosmicDome) {
           this.cosmicDome.setAstrolabeIntensity(0.55, 4000);
@@ -267,13 +297,20 @@ class IridescentVisionApp {
       this.soundHandler.schedule(() => {
         if (this.background) {
           this.background.speedup = true;
+          this.background.setVeilIntensity(1.0, 1200);
         }
         if (this.envDome) this.envDome.setIntensity(0.42, 1500);
         if (this.cosmicDome) {
-          this.cosmicDome.setAstrolabeIntensity(1.0, 800);
-          this.cosmicDome.pulseAstrolabe(1.0, 700, 800);
+          // Kept subtle here on purpose: the astrolabe's full bloom is
+          // Orbit's "finished weave" reveal (gravity2Glass below) — at
+          // full intensity here it competed with the still-opaque magnet
+          // material for attention and buried the mask's actual form.
+          this.cosmicDome.setAstrolabeIntensity(0.4, 800);
+          this.cosmicDome.pulseAstrolabe(0.6, 700, 800);
         }
-        this.tweenOrnament({ pulse: 1.0, iridescentShift: 0.4 }, 1500, 'spikeAndReturn');
+        // (Ornament shell stays hidden here — the magnet material's own
+        // uTime-driven pulse already carries this beat's "energizing"
+        // punctuation; see buildMagnetFieldMaterial.)
         this.setBackgroundPalette('ascension');
       }, 1, 4);
       gravity2Glass();
@@ -281,6 +318,10 @@ class IridescentVisionApp {
 
     const gravity2Glass = () => {
       this.soundHandler.schedule(() => {
+        if (this._gravityScatterInterval) {
+          clearInterval(this._gravityScatterInterval);
+          this._gravityScatterInterval = undefined;
+        }
         if (this.gravity) this.gravity.disable();
         this.gravity = null;
         this.testTransparent(2300);
@@ -293,11 +334,22 @@ class IridescentVisionApp {
         this.setBackgroundPalette('orbit');
         if (this.cosmicDome) {
           this.cosmicDome.setIntensity(1.0, 2500);
+          // Full astrolabe bloom belongs here — the "finished weave"
+          // reveal, now that the mask is transparent/refractive and can
+          // actually show the grid through glass instead of competing
+          // with an opaque face for attention.
+          this.cosmicDome.setAstrolabeIntensity(1.0, 2000);
           this.cosmicDome.bloomYantra(1500);
           this.cosmicDome.setMantraIntensity(0.7, 4000);
           this.cosmicDome.setTapestryIntensity(0, 2500);
         }
-        this.tweenOrnament({ flow: 1.0, thirdEye: 1.0, iridescentShift: 1.0 }, 1500, 'easeOutQuart');
+        // "Twin Opening" third-eye motif now lives inside the glass
+        // itself — light fracturing along facet seams as she becomes
+        // transparent — rather than an opaque shell floating in front
+        // of a see-through mask (ornament redesign). Independent shell
+        // stays hidden; only its third-eye glow gets a last faint echo.
+        if (this.glassSkin) this.glassSkin.setFractureIntensity(0.65, 2600);
+        this.tweenOrnament({ thirdEye: 0.15 }, 2500, 'easeOutQuart');
         if (this.prayerBeads) this.prayerBeads.setIntensity(1.0, 1800);
       }, 1, 5.5);
       shakeHead();
@@ -389,6 +441,18 @@ class IridescentVisionApp {
     };
 
     const enableActivity = () => {
+      // schedule() takes ABSOLUTE (min, sec) from Transport start, not an
+      // offset from whichever nested closure registered it. This was
+      // (2, 9) = 129s — 95 seconds BEFORE afterFlake's dispersal cue at
+      // (3, 44) = 224s, so Activity tore down headmove and hid the mesh
+      // long before the head ever got to rotate/flake apart. Confirmed
+      // 2026-07-06: the "head disperses too late" / "yantra fades at the
+      // wrong moment" complaints were both this same bug — the real
+      // wind-down sequence (rotateHead at 244s, afterFlake's 8s decompose
+      // at 224s) never got to play against the mask because Activity had
+      // already replaced the scene. Moved to just after afterFlake's 8s
+      // decompose/flake fade finishes (224 + 9 ≈ 233s) so the dispersal
+      // actually plays out before the portrait takes over.
       this.soundHandler.schedule(() => {
         if (this.headmove) {
           this.headmove.disable();
@@ -401,7 +465,7 @@ class IridescentVisionApp {
         if (this.prayerBeads) this.prayerBeads.setIntensity(0, 1500);
         this.activity = new Activity(this.camera, this.scene, this.controls);
         this.activity.enable();
-      }, 2, 9);
+      }, 3, 53);
     };
 
   }
@@ -483,7 +547,11 @@ class IridescentVisionApp {
       shader.uniforms.uRimColor = { value: rimColor.clone() };
       shader.uniforms.uRimStrength = { value: 0.7 };
       shader.uniforms.uRimExponent = { value: 2.3 };
-      shader.fragmentShader = shader.fragmentShader.replace(
+      shader.fragmentShader = `
+        uniform vec3 uRimColor;
+        uniform float uRimStrength;
+        uniform float uRimExponent;
+      ` + shader.fragmentShader.replace(
         'vec4 diffuseColor = vec4( diffuse, opacity );',
         `float rimDot = clamp(dot(normalize(vNormal), normalize(-vViewPosition)), 0.0, 1.0);
          float rim = pow(1.0 - rimDot, uRimExponent);
@@ -502,6 +570,7 @@ class IridescentVisionApp {
 
     const texLoader = new THREE.TextureLoader();
     const matcapRubber = texLoader.load(matcapRubberPath);
+    const matcapMagnetite = texLoader.load(matcapMagnetitePath);
     const surfaceTex = texLoader.load(surfaceHeightPath);
     surfaceTex.wrapS = THREE.RepeatWrapping;
     surfaceTex.wrapT = THREE.RepeatWrapping;
@@ -512,7 +581,10 @@ class IridescentVisionApp {
     // Magnetic field for Ascension (Gravity swaps this in) — tool-making
     // energy magnetizes her, field lines converging pole to pole, not a
     // mirror-chrome surface (see project memory: scene 2 is magnet, not metal).
-    mesh.userData.magnetMaterial = this.buildMagnetFieldMaterial(mesh, surfaceTex);
+    // matcapMagnetite (docs/asset-brief Asset 2C) gives it an actual dull,
+    // granular mineral surface identity — the field-line/fresnel shader
+    // logic layers on top of this instead of a flat multiplied color.
+    mesh.userData.magnetMaterial = this.buildMagnetFieldMaterial(mesh, surfaceTex, matcapMagnetite);
 
     this.attachOrnamentShell(mesh);
     if (this.palette) this.palette.broadcast();
@@ -527,11 +599,13 @@ class IridescentVisionApp {
       uniforms: {
         uMatcap: { value: matcapTexture },
         uSurfaceTex: { value: surfaceTexture },
-        uSurfaceScale: { value: 0.16 },
-        uSurfaceAmount: { value: 0.05 },
+        uSurfaceScale: { value: 0.24 },
+        uSurfaceAmount: { value: 0.13 },
         uGain: { value: gain },
       },
       vertexShader: /* glsl */`
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
         varying vec3 vN;
         varying vec3 vV;
         varying vec3 vP;
@@ -541,9 +615,11 @@ class IridescentVisionApp {
           vV = -mv.xyz;
           vP = position;
           gl_Position = projectionMatrix * mv;
+          #include <logdepthbuf_vertex>
         }
       `,
       fragmentShader: /* glsl */`
+        #include <logdepthbuf_pars_fragment>
         uniform sampler2D uMatcap;
         uniform sampler2D uSurfaceTex;
         uniform float uSurfaceScale;
@@ -573,19 +649,22 @@ class IridescentVisionApp {
           // Rubber matcap is the darkest asset by design (docs/asset-brief) —
           // needs gain on the near-black stage to read as plum-lavender.
           vec3 col = texture2D(uMatcap, uv).rgb * uGain;
-          col *= 0.9 + 0.2 * h;
+          col *= 0.72 + 0.56 * h;
           gl_FragColor = vec4(col, 1.0);
+          #include <logdepthbuf_fragment>
         }
       `,
     });
   }
 
-  // Ascension's magnetic-field material: no image asset, a dipole field
-  // is procedural. Pole axis = mesh's local Y (crown to chin); field
-  // lines are meridian-like arcs that geometrically converge at both
-  // poles, brightened near the poles (higher field density) with a
-  // slow pole-to-pole pulse. Dark magnetite body underneath.
-  buildMagnetFieldMaterial(mesh, surfaceTexture) {
+  // Ascension's magnetic-field material: dipole field lines are
+  // procedural (pole axis = mesh's local Y, crown to chin; meridian arcs
+  // converge geometrically at both poles, brightened near the poles with
+  // a slow pole-to-pole pulse), but the body itself now samples a real
+  // dark-magnetite matcap (docs/asset-brief Asset 2C) instead of a flat
+  // multiplied color — the earlier flat version read as synthetic/plain
+  // even after the fresnel rim fixed its legibility.
+  buildMagnetFieldMaterial(mesh, surfaceTexture, matcapTexture) {
     mesh.geometry.computeBoundingBox();
     const bb = mesh.geometry.boundingBox;
     const center = bb.getCenter(new THREE.Vector3());
@@ -593,35 +672,47 @@ class IridescentVisionApp {
 
     return new THREE.ShaderMaterial({
       uniforms: {
+        uMatcap: { value: matcapTexture },
         uSurfaceTex: { value: surfaceTexture },
         uSurfaceScale: { value: 0.16 },
         uAxisCenter: { value: center },
         uAxisHalf: { value: axisHalf },
-        uBaseColor: { value: new THREE.Color('#121022') },
+        uGain: { value: 1.35 },
         uLineColor: { value: new THREE.Color('#c9b8ff') },
+        uRimColor: { value: new THREE.Color('#a690ff') },
         uLineCount: { value: 11.0 },
         uTime: { value: 0 },
       },
       vertexShader: /* glsl */`
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
         varying vec3 vN;
         varying vec3 vP;
+        varying vec3 vViewPos;
         void main() {
           vN = normalize(normalMatrix * normal);
           vP = position;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vViewPos = mv.xyz;
+          gl_Position = projectionMatrix * mv;
+          #include <logdepthbuf_vertex>
         }
       `,
       fragmentShader: /* glsl */`
+        #include <logdepthbuf_pars_fragment>
+        uniform sampler2D uMatcap;
         uniform sampler2D uSurfaceTex;
         uniform float uSurfaceScale;
         uniform vec3 uAxisCenter;
         uniform float uAxisHalf;
-        uniform vec3 uBaseColor;
+        uniform float uGain;
         uniform vec3 uLineColor;
+        uniform vec3 uRimColor;
         uniform float uLineCount;
         uniform float uTime;
         varying vec3 vN;
         varying vec3 vP;
+        varying vec3 vViewPos;
 
         void main() {
           vec3 rel = vP - uAxisCenter;
@@ -644,10 +735,31 @@ class IridescentVisionApp {
           float lineBrightness = linePattern * (0.3 + poleBoost * 0.85 + pulse * 0.5);
 
           float h = texture2D(uSurfaceTex, rel.xy * uSurfaceScale).r;
-          vec3 base = uBaseColor * (0.82 + 0.3 * h);
-          vec3 color = base + uLineColor * lineBrightness;
+
+          // Matcap sample (same technique as the rubber body): view-space
+          // normal projected into the capture sphere's UV space, so the
+          // dull granular magnetite reads as a real material rather than
+          // a flat multiplied color.
+          vec3 viewDir = normalize(-vViewPos);
+          vec3 n = normalize(vN);
+          vec3 mx = normalize(vec3(viewDir.z, 0.0, -viewDir.x));
+          vec3 my = cross(viewDir, mx);
+          vec2 matcapUv = vec2(dot(mx, n), dot(my, n)) * 0.495 + 0.5;
+          matcapUv += (h - 0.5) * 0.06;
+          vec3 base = texture2D(uMatcap, matcapUv).rgb * uGain;
+
+          // Fresnel rim: the field-line pattern alone gave no cue to the
+          // mask's actual 3D form (vN was computed but never sampled) —
+          // the whole head read as a flat dark blob except right at the
+          // poles. This brings the silhouette/volume back without
+          // brightening the magnetite body itself.
+          float fresnel = pow(1.0 - max(0.0, dot(n, viewDir)), 2.2);
+          vec3 rim = uRimColor * fresnel * 0.85;
+
+          vec3 color = base + uLineColor * lineBrightness + rim;
 
           gl_FragColor = vec4(color, 1.0);
+          #include <logdepthbuf_fragment>
         }
       `,
     });
@@ -848,6 +960,23 @@ class IridescentVisionApp {
     this.palette.tweenPalette(target, duration, easingName);
   }
 
+  // Shorthand -> real uniform name. NOTE: a naive 'u' + capitalize
+  // (e.g. reveal -> uReveal) does NOT match this shell's actual names
+  // (uOrnamentReveal, uThirdEyeReveal, ...) and silently no-ops — every
+  // tweenOrnament call in the timeline except iridescentShift was dead
+  // until this map existed (found 2026-07-06 while redesigning the
+  // ornament to hand off per-beat instead of floating over every
+  // material). Keep this table in sync with attachOrnamentShell's
+  // uniform names.
+  static ORNAMENT_ALIASES = {
+    reveal: 'uOrnamentReveal',
+    thirdEye: 'uThirdEyeReveal',
+    pulse: 'uOrnamentPulse',
+    flow: 'uOrnamentFlow',
+    flake: 'uOrnamentFlake',
+    iridescentShift: 'uIridescentShift',
+  };
+
   tweenOrnament(targets, durationMs = 1500, easingName = 'easeInOutCubic') {
     if (!this.ornamentUniforms) return;
     const state = this.ornamentUniforms;
@@ -855,7 +984,9 @@ class IridescentVisionApp {
     const start = {};
     const end = {};
     for (const key of Object.keys(targets)) {
-      const uniformKey = key.startsWith('u') ? key : 'u' + key[0].toUpperCase() + key.slice(1);
+      const uniformKey = key.startsWith('u')
+        ? key
+        : (IridescentVisionApp.ORNAMENT_ALIASES[key] || ('u' + key[0].toUpperCase() + key.slice(1)));
       if (state[uniformKey]) {
         start[uniformKey] = state[uniformKey].value;
         end[uniformKey] = targets[key];
@@ -1317,10 +1448,11 @@ class IridescentVisionApp {
     this.isStarted = true;
     if (this.background) {
       this.background.enable();
-      // The womb breathes in rather than popping on: fibers start near
-      // dark and bloom over the first breaths while the canvas focuses.
-      this.background.setForestIntensity(0.05, 0);
-      this.background.setForestIntensity(1.0, 5200);
+      // The tunnel/veil breathes in rather than popping on: it starts
+      // near-dark and blooms over the first breaths while the canvas
+      // focuses.
+      this.background.setVeilIntensity(0.05, 0);
+      this.background.setVeilIntensity(1.0, 5200);
     }
     if (this.canvas) {
       this.canvas.style.opacity = '1';

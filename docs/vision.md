@@ -7,7 +7,7 @@
 
 ### 1. Awakening (Primal)
 
-- **Environment:** Dim fiber forest, fibers gently pulsing like roots and nerves; the camera looks into a cylindrical tunnel.
+- **Environment:** Dim swirling tunnel with photographed silk-veil luminance and drifting sparkles; the camera looks into a cylindrical vortex. Calm, soft, no rigid geometry.
 - **Goddess state:** Mask (`mask3.gltf`) appears in front of a darker carved face (`Taj.gltf`). Material is `MeshPhysicalMaterial` with the soft iridescent rim injection from `app.js:applyMaskMaterial` — anchored and translucent.
 - **Interaction:** `SoftVolume` lets the viewer pull / deform the mask. `MouseLight` follows the cursor and lights the mask with a moving spot. **This is the only beat with full embodied interaction** — the viewer's hand is the goddess's body.
 - **Palette:** `awakening` (dim purple, lavender glow).
@@ -15,7 +15,7 @@
 
 ### 2. Ascension (Agrarian → Industrial)
 
-- **Environment:** Fibers stop pulsing and start **streaming upward.** The tunnel UV scrolls; sparkles drift up past the camera. The forest stays populated throughout — `driftFactor` keeps baseline slow and lets the climax burst (`FiberForestBackground.update`).
+- **Environment:** The *same* tunnel speeds up and brightens rather than switching motifs — UV scroll accelerates, sparkles drift upward past the camera faster, `setVeilIntensity` ramps back to full at the climax (`FiberForestBackground.update`).
 - **Goddess state:** `SoftVolume` is disposed (mask becomes firm); gravity balls begin orbiting and colliding with the mask — energy released by tool-making.
 - **Transition in (~`t=27.5` → `t=29.5`):** Two-second pre-warmup — palette tweens to `transition`, a radial buildup glow grows from screen center. Then a **single cinematic flash** at `t=29.5` (no stroboscope) reveals the new state.
 - **Climax (`t≈64` → `t≈65.5`):** `background.speedup` flips on; `speedupAmount` ramps quickly toward its cap, vertical scroll accelerates aggressively, and the mask + face physically lift as if being pulled up (`app.js:updateScene`).
@@ -57,12 +57,20 @@
 
 ## What's Done
 
-### Fiber forest (feature/shadertoy-fiber)
+### Tunnel + veil environment (feature/shadertoy-fiber, reworked 2026-07-06)
 
+- Awakening/Ascension environment is a Shadertoy-style tunnel cylinder
+  layered with photographed silk-drape luminance (`silk-veil.jpg`), plus
+  sprite-based sparkles drifting/rising inside it (`FiberForestBackground.js`).
 - Pre-warmup palette tween + cinematic flash for the soft → gravity transition (`app.js:soft2Gravity`).
 - Ramped speedup with accelerating vertical scroll and synchronized mask / face lift during Ascension climax.
-- Throttled baseline vertical drift so the fiber forest doesn't empty during the long Ascension window.
-- Shared `uVerticalScroll` uniform across fibers, tunnel, and sparkles so the whole background rises together.
+- Shared `uVerticalScroll` uniform across tunnel and sparkles so the whole background rises together.
+- **Dropped the instanced fiber-strand curtain** (roots↔streams via
+  `uMode`) that used to hang in front of/around the tunnel — it read as
+  a rigid, scratchy door-frame rather than the soft mv-10 reference
+  (fine, dense, depth-of-field-blurred strands). The tunnel+veil alone
+  tested better in side-by-side comparison; see "environment concept"
+  below for what replaces it.
 
 ### Cosmic dome (feature/cosmic-dome — `CosmicDome.js`)
 
@@ -92,17 +100,22 @@ All seven layers per `plan/cosmic-dome.md`:
 - **§2 Shared easing** — `core/easing.js` exports `easeInOutCubic`, `easeOutQuart`, `easeOutExpo`, `spikeAndReturn`. Palette tween and ornament tween accept named curves; the four Twin Moments use the documented profiles.
 - **§3 Shared particle pool** — `cosmicDome.spawnDust({position, velocity, count, tint, lifetime, scale})` writes into the 600-slot burst sub-system. The GoldFlakes emitter is the first real caller; mask-source and dome-source dust share one rendering pipeline.
 
-### The thread of civilization (concept, decided 2026-07-06)
+### Environment concept (superseded 2026-07-06 — see below)
 
-The fiber is **one thread reworked by each era's faith**: roots/womb
-(Awakening — the goddess is born from the world-tree's vesica, a few
-umbilical strands attaching behind her rim) → spun lines streaming
-upward (Ascension — the loom age) → woven geometry (Orbit — yantra and
-astrolabe are the finished weave) → unraveled back to dust (Reflection).
-One space transforming, never a cut. Composition rules learned the hard
-way: the womb opening stays wider than the mask silhouette, and every
-strand's z stays behind her plane (depth-test terminates the cords at
-her silhouette, so they can never cross the face).
+~~The fiber is one thread reworked by each era's faith: roots/womb
+(Awakening) → spun lines streaming upward (Ascension) → woven geometry
+(Orbit) → unraveled back to dust (Reflection).~~ Dropped after the
+Awakening curtain read as a rigid door-frame rather than the intended
+mv-10 softness (side-by-side mockup comparison confirmed tunnel+veil
+alone, without any strand system, was the better look). Current
+concept: **the same tunnel/veil space intensifies rather than swapping
+motifs** — Awakening is the tunnel calm and dim (`setVeilIntensity`
+breathes it in from near-dark), Ascension is the *same* tunnel sped up
+and brightened (`background.speedup`, `setVeilIntensity(1.0, ...)` at
+the climax) with sparkles drifting upward instead of a separate
+"streaming fiber" mode. Orbit/Reflection's weave→dust arc (CosmicDome's
+yantra/astrolabe → decomposition) is unaffected — it was always a
+separate system from the fiber curtain, not the same threads continuing.
 
 ### Visual quality pass (feature/visual-quality-pass)
 
@@ -123,21 +136,49 @@ her silhouette, so they can never cross the face).
   beats. Real material identity lives entirely in the materials each
   mode swaps to. Current relay: SoftVolume swaps in the rubber-gel
   matcap (`mesh.userData.rubberMaterial`, Asset 2A — Awakening's
-  touchable body) → Gravity swaps in the procedural magnet-field
-  material (`mesh.userData.magnetMaterial`, `app.js:buildMagnetFieldMaterial`
-  — Ascension: dark magnetite base, field-line arcs converging at both
-  poles of the mesh's local Y axis, brighter near the poles, slow
-  pole-to-pole pulse; no image asset, this is deliberate per artist
-  direction — scene 2 is a magnet, not chrome/metal) → GlassSkin cube
-  refraction (Orbit). Tri-planar surface height map feeds micro-relief
-  into both the rubber matcap and (as a subtle texture read) the magnet
-  material. The chrome matcap (Asset 2B, `matcap-chrome.jpg`) is no
-  longer wired to any beat — the asset file remains in
-  `src/textures/generated/` but is currently unused by the app.
+  touchable body) → Gravity swaps in the magnet-field material
+  (`mesh.userData.magnetMaterial`, `app.js:buildMagnetFieldMaterial` —
+  Ascension: dark granular magnetite matcap (Asset 2C, `matcap-magnetite.jpg`,
+  added 2026-07-06) as the body, with procedural field-line arcs
+  converging at both poles of the mesh's local Y axis, brighter near the
+  poles with a slow pole-to-pole pulse, plus a fresnel rim for
+  silhouette/volume legibility — scene 2 is a magnet, not chrome/metal)
+  → GlassSkin cube refraction (Orbit). Tri-planar surface height map
+  feeds micro-relief into both the rubber matcap and the magnet matcap's
+  UV offset. The chrome matcap (Asset 2B, `matcap-chrome.jpg`) is still
+  unused by the app — the asset file remains in `src/textures/generated/`.
 - **Generated textures** (`src/textures/generated/`, briefs + accepted
   candidates in `docs/asset-brief.md` / `docs/reference/`) — dome, two
   matcaps, height map, particle sprite (dust/burst/sparkles), silk veil
   (tunnel layer).
+- **Ornament redesign** (2026-07-06): the crystal-shell ornament no
+  longer floats over every beat. Awakening keeps it subtle (reveal
+  fades to 0 right after the soft→gravity flash); Ascension carries its
+  "energizing" beat through the magnet material's own uTime pulse
+  instead of an ornament pulse; Orbit recasts the third-eye motif as
+  light fracturing inside the glass itself (`GlassSkin.setFractureIntensity`,
+  a voronoi facet-edge shader keyed to `uFractureScale`/`uFractureSoftness`)
+  rather than an opaque shell in front of a transparent mask. Reflection's
+  flake/shatter cue is unchanged.
+- **Mask z-fighting fix** (2026-07-06, important root-cause fact): the
+  "weird grid" seen on the mask surface — first on the ornament shell,
+  then again on the new glass-fracture shader, and confirmed present on
+  the rubber matcap and magnet materials too — was never a shader or
+  material bug. `mask3.gltf` has two very-slightly-separated shell
+  faces that z-fight under a standard non-linear depth buffer at the
+  mask's actual camera distance (tens of units; `OrbitControls.minDistance`
+  is 20). Proof: the crack pattern matched the mesh's own wireframe
+  exactly, persisted through a flat-unlit debug override (ruling out
+  lighting/envmap), and vanished completely with `depthTest` disabled.
+  Fixed by enabling `logarithmicDepthBuffer: true` on the `WebGLRenderer`
+  (`app.js:init`), which built-in materials (the base `MeshPhysicalMaterial`,
+  `GlassSkin`'s `MeshPhongMaterial`) pick up automatically; the two
+  custom `THREE.ShaderMaterial`s (`buildMatcapMaterial`,
+  `buildMagnetFieldMaterial`) needed `#include <logdepthbuf_vertex>` /
+  `<logdepthbuf_fragment>` added by hand since three.js only auto-injects
+  the chunk *declarations*, not the compute lines, into raw shader
+  bodies. Any future custom `ShaderMaterial` added to the mask must
+  include the same chunks or this artifact will reappear.
 
 ## Open Threads
 
