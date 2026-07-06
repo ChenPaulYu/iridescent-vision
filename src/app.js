@@ -111,11 +111,15 @@ class IridescentVisionApp {
     this.canvas = this.renderer.domElement;
     this.canvas.style.opacity = '0';
     this.canvas.style.pointerEvents = 'none';
-    this.canvas.style.transition = 'opacity 1s ease';
-    this.canvas.style.filter = 'blur(10px)';
+    this.canvas.style.transition = 'opacity 2.4s ease, filter 3.6s ease';
+    this.canvas.style.filter = 'blur(26px)';
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enable = true;
+    // User input never orbits the camera — the frame is a composed
+    // ritual shot. (Activity's autoRotate still works: controls.update()
+    // applies it regardless of `enabled`.) Dragging in Act 1 belongs to
+    // SoftVolume's pull interaction alone.
+    this.controls.enabled = false;
     this.controls.target.set(0, 4, 0);
     this.controls.update();
 
@@ -1271,11 +1275,17 @@ class IridescentVisionApp {
   handleStart() {
     if (this.isStarted) return;
     this.isStarted = true;
-    if (this.background) this.background.enable();
+    if (this.background) {
+      this.background.enable();
+      // The womb breathes in rather than popping on: fibers start near
+      // dark and bloom over the first breaths while the canvas focuses.
+      this.background.setForestIntensity(0.05, 0);
+      this.background.setForestIntensity(1.0, 5200);
+    }
     if (this.canvas) {
       this.canvas.style.opacity = '1';
       this.canvas.style.pointerEvents = 'auto';
-      this.canvas.style.filter = 'none';
+      this.canvas.style.filter = 'blur(0px)';
     }
     if (this.soundHandler) this.soundHandler.start();
   }
