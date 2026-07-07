@@ -26,12 +26,17 @@ var GlassSkin = function(scene, mesh) {
         // MixOperation shows the refracted environment directly instead
         // of multiplying it with scene lighting — with the scene's single
         // dim directional light, Multiply rendered the glass near-black.
+        // Real alpha + lighter mirror term (2026-07-07, second pass at
+        // this after an earlier revert): the artist settled on the
+        // see-through register for Orbit — "感覺可以再透明一點".
         cubeMaterial = new THREE.MeshPhongMaterial( {
             color: 0xffffff,
             envMap: cubeCamera.renderTarget.texture,
             refractionRatio: 0.93,
             combine: THREE.MixOperation,
-            reflectivity: 0.92,
+            reflectivity: 0.72,
+            transparent: true,
+            opacity: 0.75,
         } );
 
         // "Third-eye" ornament recast as light fracturing inside the

@@ -37,15 +37,20 @@
         rgba(150, 90, 220, 0.55) 45%,
         rgba(60, 25, 100, 0.25) 78%,
         rgba(0, 0, 0, 0) 100%);
-    background-size: cover;
+    /* Zoomed past the rock's jagged silhouette: only the interior
+       texture + crack glow shows, so the visible shape is this circle,
+       not the photo's craggy outline — reads rounder/dreamier, matching
+       the app's soft register (artist note 2026-07-07: the raw outline
+       was too literal/photoreal). */
+    background-size: 165%;
     background-position: center;
     /* A perfect circle with a crisp border-radius edge reads as a hard
        graphic shape, against style-anchor's "glows/blurs at every edge,
        no hard outlines" rule (reported 2026-07-06: the ember looked too
        clean/synthetic). Mask the outer ring to transparent so the
        silhouette itself dissolves into the glow instead of cutting. */
-    mask-image: radial-gradient(circle, black 58%, transparent 92%);
-    -webkit-mask-image: radial-gradient(circle, black 58%, transparent 92%);
+    mask-image: radial-gradient(circle, black 48%, transparent 86%);
+    -webkit-mask-image: radial-gradient(circle, black 48%, transparent 86%);
     box-shadow: 0 0 7vmin rgba(150, 105, 235, 0.22),
                 0 0 2vmin rgba(210, 180, 250, 0.24);
     animation: breathe 4.2s infinite ease-in-out,

@@ -240,7 +240,9 @@ class FiberForestBackground {
   }
 
   createSparkles() {
-    const count = 1200;
+    // 1200 → 2100 per artist request (2026-07-07): more of the scattered
+    // cotton-like flecks drifting through Act 1.
+    const count = 2100;
     const positions = new Float32Array(count * 3);
     const seeds = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {

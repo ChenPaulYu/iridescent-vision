@@ -295,10 +295,13 @@ class IridescentVisionApp {
     const speedupBg = () => {
       this.soundHandler.schedule(() => {
         // Fades to full black over 700ms (reaching full at ~64.7s), holds
-        // through gravity2Glass's actual scene swap at 65.5s, then fades
+        // through gravity2Glass's actual scene swap at 67.5s, then fades
         // back in — the ascent "bursts through" into Orbit under a clean
-        // cut instead of the new scene popping in mid-frame.
-        this.blackoutTransition(1000, 700);
+        // cut instead of the new scene popping in mid-frame. Hold length
+        // tracks the swap time: Orbit was revealing ~2s too early per
+        // artist feedback (2026-07-07), so the swap moved 65.5→67.5 and
+        // this hold stretched to keep it covered.
+        this.blackoutTransition(3200, 700);
         if (this.background) {
           this.background.speedup = true;
           this.background.setVeilIntensity(1.0, 1200);
@@ -356,7 +359,7 @@ class IridescentVisionApp {
         if (this.glassSkin) this.glassSkin.setFractureIntensity(0.65, 2600);
         this.tweenOrnament({ thirdEye: 0.15 }, 2500, 'easeOutQuart');
         if (this.prayerBeads) this.prayerBeads.setIntensity(1.0, 1800);
-      }, 1, 5.5);
+      }, 1, 7.5);
       shakeHead();
     };
 
@@ -427,7 +430,7 @@ class IridescentVisionApp {
           if (count > 2) clearInterval(interval);
         }, 800);
         this.setHeadmoveMode('shake');
-      }, 2, 5);
+      }, 2, 3);
     };
 
     const rotateHead = () => {
@@ -1593,22 +1596,23 @@ class IridescentVisionApp {
   handleStart() {
     if (this.isStarted) return;
     this.isStarted = true;
+    // Hard cut (user direction 2026-07-07, after trying a held-darkness
+    // pause): no pause, no fade — click lands directly inside the fully
+    // formed scene, canvas at full opacity/sharpness, veil and god rays
+    // already at strength, Transport starting on the same tick.
     if (this.background) {
       this.background.enable();
-      // The tunnel/veil breathes in rather than popping on: it starts
-      // near-dark and blooms over the first breaths while the canvas
-      // focuses.
-      this.background.setVeilIntensity(0.05, 0);
-      this.background.setVeilIntensity(1.0, 5200);
+      this.background.setVeilIntensity(1.0, 0);
     }
     // "Underwater" god-ray register for Awakening/Ascension (user request
     // 2026-07-06) — faded out at the Orbit transition (gravity2Glass),
     // since Orbit reads as transcendent glass/void, not submerged.
-    if (this.post) this.post.setGodrayIntensity(0.6, 5200);
+    if (this.post) this.post.setGodrayIntensity(0.6, 0);
     if (this.canvas) {
+      this.canvas.style.transition = 'none';
       this.canvas.style.opacity = '1';
       this.canvas.style.pointerEvents = 'auto';
-      this.canvas.style.filter = 'blur(0px)';
+      this.canvas.style.filter = 'none';
     }
     if (this.soundHandler) this.soundHandler.start();
     // Warm the finale's 4.6MB poster into browser cache during Act 1's

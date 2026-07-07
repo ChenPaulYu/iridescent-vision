@@ -118,8 +118,9 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
         const elapsed = rotateModeStart ? performance.now() - rotateModeStart : 2200
         const t = Math.min(elapsed / 2200, 1)
         const ease = t * t
-        this.camera.rotation.z += 0.012 * ease
-        this.camera.position.z -= 0.15 * ease
+        // Slowed again per artist feedback (0.012 → 0.006 rad/frame).
+        this.camera.rotation.z += 0.006 * ease
+        this.camera.position.z -= 0.09 * ease
         if (this.camera.position.z <= -100) removeModelByName('face')
     }
 
