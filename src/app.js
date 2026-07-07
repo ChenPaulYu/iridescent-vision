@@ -1309,7 +1309,12 @@ class IridescentVisionApp {
   animate(time = 0) {
     requestAnimationFrame(this.animate);
     if (!this.renderer || !this.camera) return;
-    const delta = this.lastTime ? (time - this.lastTime) / 1000 : 0;
+    // Clamped: after a tab switch or a long GC pause, a raw multi-second
+    // delta would teleport every delta-driven animation (mask lift, dome
+    // drift, scroll) in one frame. Capping at 50ms turns hitches into a
+    // brief slow-motion instead of a visual jump; Tone.Transport keeps
+    // its own clock, so the soundtrack sync is unaffected.
+    const delta = this.lastTime ? Math.min((time - this.lastTime) / 1000, 0.05) : 0;
     this.lastTime = time;
     if (this.isStarted) {
       this.updater.update(delta);

@@ -143,6 +143,7 @@ var Gravity = function (scene, mesh, soundHandler) {
     }
 
     let nowDate;
+    let contactFrame = 0;
     let postLoop = (pos) => {
         var force, m;
         var r = 3;
@@ -150,11 +151,18 @@ var Gravity = function (scene, mesh, soundHandler) {
         let center = new Vec3(pos.x, pos.y, pos.z);
         let all    = this.all
         nowDate = new Date();
+        // Contact checks (world.getContact × ~80 bodies, plus the sound
+        // triggers behind them) only every other frame — Ascension is the
+        // piece's heaviest beat (physics + tunnel + magnet shader at
+        // once) and the 200ms sound-dedup window makes alternate-frame
+        // checking inaudible.
+        contactFrame = (contactFrame + 1) % 2;
+        const checkContacts = contactFrame === 0;
         bodys.forEach(function (b, id) {
-            
+
             //console.log(b.userData.contact);
             if (b.type === 1) {
-                contact(b);
+                if (checkContacts) contact(b);
                 m = b.mesh;
                 force = center.clone().sub(m.position).normalize().multiplyScalar(delta);
                 if (delta < 15) delta += 1
