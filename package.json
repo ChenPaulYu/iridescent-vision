@@ -2,7 +2,7 @@
   "name": "Iridescent-Vision",
   "version": "1.0.0",
   "description": "",
-  "homepage": "https://github.com/Sonia-lai/Iridescent-Vision",
+  "homepage": "https://chenpaulyu.github.io/iridescent-vision/",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "start": "vite --host 0.0.0.0",
