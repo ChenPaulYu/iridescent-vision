@@ -287,13 +287,14 @@ var Activity = function (camera, scene, controls) {
     }
 
     let resetPos = () => {
-        // Lying-in-the-tomb framing: camera low, target high overhead, so
-        // the ceiling inscription fills the view and autoRotate slowly
-        // circles beneath it. Not dead-vertical — OrbitControls gets
-        // unstable as the polar angle reaches 0, and a slight tilt keeps
-        // one glyph wall grazing the frame edge for depth.
-        camera.position.set(0, -42, 44);
-        controls.target.set(0, 100, 0);
+        // Free-look chamber framing: orbit target at the room's center,
+        // camera low and pulled back so the arrival view tilts up toward
+        // the inscribed ceiling — from there the viewer can drag to any
+        // wall. (Note: distance limits are re-opened in enable(); the
+        // opening act's maxDistance≈70 clamp would otherwise yank the
+        // camera toward the target on the first controls.update().)
+        camera.position.set(0, -45, 60);
+        controls.target.set(0, 15, 0);
         controls.update();
     }
 
@@ -320,11 +321,23 @@ var Activity = function (camera, scene, controls) {
 
 
     this.enable = () => {
+        // Free look returns here (artist direction 2026-07-07): the
+        // viewer can drag to explore the chamber — ceiling stele, poster
+        // walls, floating portrait — while a gentle autoRotate keeps the
+        // room drifting when idle. The opening act's tight distance
+        // clamp (maxDistance ≈ 70) must be re-opened BEFORE resetPos's
+        // controls.update(), or the camera gets yanked toward the target.
+        this.controls.enabled = true;
+        this.controls.enableRotate = true;
+        this.controls.enablePan = false;
+        this.controls.enableZoom = true;
+        this.controls.minDistance = 20;
+        this.controls.maxDistance = 150;
         resetPos()
         this.scene.add(button);
         this.scene.add(bgMesh);
         this.controls.autoRotate = true;
-        this.controls.enabled = false;
+        this.controls.autoRotateSpeed = 0.8;
     }
 
     this.update = (camera) => {
@@ -340,10 +353,10 @@ var Activity = function (camera, scene, controls) {
                 eventType = ''
             }
         } else {
-            this.controls.autoRotateSpeed = 2;
+            this.controls.autoRotateSpeed = 0.8;
             eventType = ''
         }
-        if (controls.autoRotate) this.controls.update();
+        this.controls.update();
     }
 
     this.init()

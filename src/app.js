@@ -293,14 +293,11 @@ class IridescentVisionApp {
 
     const speedupBg = () => {
       this.soundHandler.schedule(() => {
-        // Fades to full black over 700ms (reaching full at ~64.7s), holds
-        // through gravity2Glass's actual scene swap at 67.5s, then fades
-        // back in — the ascent "bursts through" into Orbit under a clean
-        // cut instead of the new scene popping in mid-frame. Hold length
-        // tracks the swap time: Orbit was revealing ~2s too early per
-        // artist feedback (2026-07-07), so the swap moved 65.5→67.5 and
-        // this hold stretched to keep it covered.
-        this.blackoutTransition(3200, 700);
+        // Let the surge play in-frame for ~1.3s, then SNAP to black in
+        // 120ms mid-acceleration ("瞬間畫面暗掉") — full black by ~65.4s,
+        // held through gravity2Glass's scene swap at 67.5s, easing back
+        // into Orbit on the far side.
+        setTimeout(() => this.blackoutTransition(2400, 120, 700), 1300);
         if (this.background) {
           this.background.speedup = true;
           this.background.setVeilIntensity(1.0, 1200);
@@ -409,12 +406,16 @@ class IridescentVisionApp {
       headUp();
     };
 
+    // Reordered (2026-07-07, artist asked for the shake sooner twice):
+    // the shake now leads the final sequence at 2:00, the flash+head-up
+    // follows at 2:04 — moving shake any earlier while it still sat
+    // after 'up' would have let 'up' cut it off after one second.
     const headUp = () => {
       this.soundHandler.schedule(() => {
         this.flash(true);
         if (this.envDome) this.envDome.setIntensity(0.78, 2200);
         this.setHeadmoveMode('up');
-      }, 2, 2);
+      }, 2, 4);
       rotateHead();
       shakeHead2();
     };
@@ -429,7 +430,7 @@ class IridescentVisionApp {
           if (count > 2) clearInterval(interval);
         }, 800);
         this.setHeadmoveMode('shake');
-      }, 2, 3);
+      }, 2, 0);
     };
 
     const rotateHead = () => {
@@ -447,18 +448,21 @@ class IridescentVisionApp {
         // upward+outward push for the ~2s remaining before the portrait
         // cuts in, so the ending reads as her flying off rather than
         // just fading in place.
+        // Strength 2.4→6.5 (2026-07-07 "要整個飛走"): the head must be
+        // fully out of frame before the portrait cut, not just drifting
+        // toward the edge.
         const flyStart = performance.now();
         const flyDuration = 2200;
         const flyOut = () => {
           const t = Math.min((performance.now() - flyStart) / flyDuration, 1);
           const speed = t * t;
           if (this.mesh) {
-            this.mesh.position.y += speed * 2.4;
-            this.mesh.position.z -= speed * 1.7;
+            this.mesh.position.y += speed * 6.5;
+            this.mesh.position.z -= speed * 4.5;
           }
           if (this.face) {
-            this.face.position.y += speed * 2.4;
-            this.face.position.z -= speed * 1.7;
+            this.face.position.y += speed * 6.5;
+            this.face.position.z -= speed * 4.5;
           }
           if (t < 1) requestAnimationFrame(flyOut);
         };
@@ -1209,7 +1213,9 @@ class IridescentVisionApp {
   // disposal, GlassSkin/HeadMove construction) underneath a clean black
   // beat, so the ascent reads as breaking through into a new register
   // rather than the new scene popping in.
-  blackoutTransition(holdMs = 1000, fadeMs = 700) {
+  // Asymmetric fades: the entry can be a near-instant snap (the ascent
+  // cutting out mid-surge) while the reveal on the far side eases back in.
+  blackoutTransition(holdMs = 1000, fadeInMs = 700, fadeOutMs = 700) {
     const overlay = document.createElement('div');
     overlay.style.cssText = `
       position: fixed;
@@ -1218,7 +1224,7 @@ class IridescentVisionApp {
       pointer-events: none;
       z-index: 9999;
       opacity: 0;
-      transition: opacity ${fadeMs}ms ease-in;
+      transition: opacity ${fadeInMs}ms ease-in;
     `;
     document.body.appendChild(overlay);
     requestAnimationFrame(() => {
@@ -1227,12 +1233,12 @@ class IridescentVisionApp {
       });
     });
     setTimeout(() => {
-      overlay.style.transition = `opacity ${fadeMs}ms ease-out`;
+      overlay.style.transition = `opacity ${fadeOutMs}ms ease-out`;
       overlay.style.opacity = '0';
       setTimeout(() => {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      }, fadeMs + 100);
-    }, fadeMs + holdMs);
+      }, fadeOutMs + 100);
+    }, fadeInMs + holdMs);
   }
 
   updateScene(delta = 0) {
@@ -1250,10 +1256,13 @@ class IridescentVisionApp {
         // Safe to leave unbounded here: HeadMove.resetPos() (fired at
         // the 'flake' mode change, 1:53.5) resets camera/mesh/face
         // positions outright, so this never accumulates past Ascension.
-        const lift = delta * this.background.speedupAmount * 8.5;
+        // 8.5 → 14 (2026-07-07): she should ROCKET — the snap-to-black
+        // now lands mid-surge, so the last visible frames must sell
+        // violent acceleration.
+        const lift = delta * this.background.speedupAmount * 14;
         if (this.mesh) this.mesh.position.y += lift;
         if (this.face) this.face.position.y += lift;
-        if (this.camera) this.camera.position.y -= delta * this.background.speedupAmount * 0.4;
+        if (this.camera) this.camera.position.y -= delta * this.background.speedupAmount * 0.6;
       }
     }
     if (this.cosmicDome) this.cosmicDome.update(delta);
