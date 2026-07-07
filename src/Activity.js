@@ -120,7 +120,9 @@ var Activity = function (camera, scene, controls) {
     const SPIN_SUMMON_SPEED = 30;
 
     let createTalismanTexture = (line) => {
-        const w = 256, h = 1280;
+        // Power-of-two dimensions — r110 resizes NPOT canvases on upload
+        // (256×1280 was silently squashed to 256×1024 anyway).
+        const w = 256, h = 1024;
         const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
@@ -253,8 +255,8 @@ var Activity = function (camera, scene, controls) {
                     side: THREE.DoubleSide,
                     opacity: 0.9,
                 });
-                // 256×1280 canvas → 1:5 plane so type isn't stretched.
-                const mesh = new THREE.Mesh(new THREE.PlaneGeometry(9, 45), material);
+                // 256×1024 canvas → 1:4 plane so type isn't stretched.
+                const mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 40), material);
                 mesh.name = 'talisman';
                 talismans.push({
                     mesh: mesh,

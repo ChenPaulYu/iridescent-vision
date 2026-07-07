@@ -94,6 +94,10 @@ class IridescentVisionApp {
     this.disableZoom();
     this.init();
     this.animate();
+    // Dev builds only (flag absent from production bundles): a DEBUG
+    // toggle floats on the start screen so the scene-jump panel can be
+    // opted into without URL surgery.
+    if (import.meta.env.VITE_DEBUG_UI === 'true') this.initDebugToggle();
   }
 
   init() {
@@ -1501,6 +1505,192 @@ class IridescentVisionApp {
       const img = new Image();
       img.src = posterPath;
     }, 9000);
+
+    // Debug scene-jump UI. Two gates: the build must allow it
+    // (VITE_DEBUG_UI=true — set in .env.development, absent from
+    // production builds) AND the user opted in — via the start-screen
+    // toggle, ?debug/#debug in the URL, or a remembered choice.
+    if (import.meta.env.VITE_DEBUG_UI === 'true' && this._debugWanted) {
+      this.initDebugUI();
+      // A backward jump reloads with ?jump=<t>: rebuild the scene by
+      // replaying the whole cue cascade from 0 to t right after start.
+      const jumpParam = parseFloat(new URLSearchParams(window.location.search).get('jump'));
+      if (!isNaN(jumpParam)) {
+        this.replayCuesTo(jumpParam);
+        this.soundHandler.seek(jumpParam);
+      }
+    }
+  }
+
+  // The start-screen DEBUG pill: click to arm/disarm the scene-jump
+  // panel before (or during) a run. Remembers the choice; ?debug in the
+  // URL pre-arms it.
+  initDebugToggle() {
+    const params = new URLSearchParams(window.location.search);
+    this._debugWanted = params.has('debug')
+      || window.location.hash.includes('debug')
+      || localStorage.getItem('iv-debug') === '1';
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #debugToggle { position: fixed; top: 14px; right: 14px; z-index: 10001;
+        display: flex; align-items: center; gap: 7px; cursor: pointer;
+        padding: 5px 12px 5px 10px; border-radius: 999px; user-select: none;
+        border: 1px solid rgba(168,132,255,0.22);
+        background: rgba(14,8,28,0.72); backdrop-filter: blur(6px);
+        color: rgba(210,190,240,0.5); font-family: helvetica, sans-serif;
+        font-size: 10px; font-weight: 300; letter-spacing: 0.26em;
+        transition: color .2s ease, border-color .2s ease; }
+      #debugToggle:hover { color: rgba(232,220,255,0.85); border-color: rgba(190,150,255,0.45); }
+      #debugToggle .dot { width: 7px; height: 7px; border-radius: 50%;
+        background: rgba(150,120,200,0.3);
+        transition: background .2s ease, box-shadow .2s ease; }
+      #debugToggle.on { color: #e8dcff; border-color: rgba(190,150,255,0.55); }
+      #debugToggle.on .dot { background: #b48aff; box-shadow: 0 0 8px rgba(180,140,255,0.9); }
+    `;
+    document.head.appendChild(style);
+
+    const toggle = document.createElement('div');
+    toggle.id = 'debugToggle';
+    toggle.innerHTML = '<span class="dot"></span>DEBUG';
+    const sync = () => toggle.classList.toggle('on', this._debugWanted);
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._debugWanted = !this._debugWanted;
+      localStorage.setItem('iv-debug', this._debugWanted ? '1' : '0');
+      sync();
+      // Mid-run flips work too: summon or hide the panel on the spot.
+      const panel = document.getElementById('debugPanel');
+      if (this.isStarted) {
+        if (this._debugWanted && !panel) this.initDebugUI();
+        else if (panel) panel.style.display = this._debugWanted ? '' : 'none';
+      }
+    });
+    sync();
+    document.body.appendChild(toggle);
+  }
+
+  // Replay, in time order and instantly, every cue that has not yet run
+  // and lies at or before `max`. Cues register in a cascade (a firing cue
+  // schedules the next stage), so each replayed cue may append new
+  // entries — iterate until nothing unfired remains in range.
+  replayCuesTo(max) {
+    let progress = true;
+    while (progress) {
+      progress = false;
+      const pending = this.soundHandler.cues
+        .filter((c) => !c.fired && c.time <= max + 0.01)
+        .sort((a, b) => a.time - b.time);
+      for (const c of pending) {
+        c.fired = true;
+        progress = true;
+        try { c.fn(); } catch (err) { console.error('debug replay: cue at ' + c.time + 's failed', err); }
+      }
+    }
+  }
+
+  // Forward: replay the skipped cue cascade, then move transport + bgm.
+  // Backward: scene mutations aren't reversible in-place — reload with a
+  // jump param and rebuild the state from zero after the start click.
+  debugJump(t) {
+    if (!this.soundHandler || !window.__Tone) return;
+    if (t >= window.__Tone.Transport.seconds) {
+      this.replayCuesTo(t);
+      this.soundHandler.seek(t);
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.set('debug', '');
+      url.searchParams.set('jump', String(t));
+      window.location.href = url.toString();
+    }
+  }
+
+  initDebugUI() {
+    const TRACK_LEN = 128.5;
+    const scenes = [
+      ['Opening', 0],
+      ['Gravity', 29.5],
+      ['Flash', 45],
+      ['Surge', 64],
+      ['Glass', 67.5],
+      ['Shake I', 98.4],
+      ['Flake', 113.5],
+      ['Shake II', 120],
+      ['Up', 124],
+      ['Rotate', 127],
+      ['Coda', 129],
+    ];
+    const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #debugPanel { position: fixed; top: 46px; right: 14px; z-index: 9999; width: 208px;
+        background: linear-gradient(165deg, rgba(22,13,42,0.92), rgba(8,5,18,0.94));
+        border: 1px solid rgba(168,132,255,0.26); border-radius: 12px;
+        padding: 13px 15px 15px; color: #d9c8f5;
+        font-family: helvetica, sans-serif; backdrop-filter: blur(8px);
+        box-shadow: 0 8px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(200,170,255,0.08); }
+      #debugPanel .dbg-head { display: flex; align-items: baseline; }
+      #debugPanel .dbg-time { font-weight: 100; font-size: 24px; letter-spacing: 0.06em;
+        color: #f4edff; text-shadow: 0 0 14px rgba(170,120,255,0.55);
+        font-variant-numeric: tabular-nums; }
+      #debugPanel .dbg-total { margin-left: auto; font-size: 10px; letter-spacing: 0.14em;
+        color: rgba(210,190,240,0.42); }
+      #debugPanel .dbg-bar { height: 3px; margin: 10px 0 12px; border-radius: 2px;
+        background: rgba(160,120,220,0.16); overflow: hidden; }
+      #debugPanel .dbg-fill { height: 100%; width: 0%; border-radius: 2px;
+        background: linear-gradient(90deg, #8a5cf6, #d8b5ff);
+        box-shadow: 0 0 8px rgba(180,140,255,0.8); }
+      #debugPanel .dbg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+      #debugPanel button { display: flex; justify-content: space-between; align-items: baseline;
+        background: rgba(120,80,200,0.09); color: #c6b2ea;
+        border: 1px solid rgba(160,120,220,0.20); border-radius: 6px;
+        padding: 4px 8px 5px; font-family: helvetica, sans-serif; font-size: 11px;
+        font-weight: 300; letter-spacing: 0.05em; cursor: pointer;
+        transition: background .15s ease, border-color .15s ease, color .15s ease; }
+      #debugPanel button:hover { background: rgba(150,105,235,0.30); color: #fff;
+        border-color: rgba(190,150,255,0.6); box-shadow: 0 0 10px rgba(160,110,250,0.30); }
+      #debugPanel button.dbg-now { background: rgba(150,105,235,0.32); color: #fff;
+        border-color: rgba(200,165,255,0.75); }
+      #debugPanel button i { font-style: normal; font-size: 9px;
+        color: rgba(216,196,250,0.55); font-variant-numeric: tabular-nums; }
+      #debugPanel button:hover i, #debugPanel button.dbg-now i { color: rgba(255,255,255,0.7); }
+    `;
+    document.head.appendChild(style);
+
+    const panel = document.createElement('div');
+    panel.id = 'debugPanel';
+    panel.innerHTML = `
+      <div class="dbg-head"><span class="dbg-time">0:00.0</span><span class="dbg-total">/ ${fmt(TRACK_LEN)}</span></div>
+      <div class="dbg-bar"><div class="dbg-fill"></div></div>
+      <div class="dbg-grid"></div>
+    `;
+    const grid = panel.querySelector('.dbg-grid');
+    const buttons = scenes.map(([label, t]) => {
+      const b = document.createElement('button');
+      b.innerHTML = `<span>${label}</span><i>${fmt(t)}</i>`;
+      // stopPropagation so debug clicks don't reach the document/window
+      // listeners (Gravity's scatter-on-click, Activity's tag game).
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.debugJump(t);
+      });
+      grid.appendChild(b);
+      return { el: b, t: t };
+    });
+    document.body.appendChild(panel);
+
+    const timeEl = panel.querySelector('.dbg-time');
+    const fillEl = panel.querySelector('.dbg-fill');
+    setInterval(() => {
+      const s = window.__Tone ? window.__Tone.Transport.seconds : 0;
+      timeEl.textContent = Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0');
+      fillEl.style.width = Math.min(100, (s / TRACK_LEN) * 100) + '%';
+      buttons.forEach((btn, i) => {
+        const next = buttons[i + 1] ? buttons[i + 1].t : Infinity;
+        btn.el.classList.toggle('dbg-now', s >= btn.t && s < next);
+      });
+    }, 100);
   }
 }
 

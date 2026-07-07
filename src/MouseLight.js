@@ -116,6 +116,9 @@ var MouseLight = function (scene, camera, soundHandler) {
 
     this.disable = () => {
         enabled = false;
+        // light/target only exist after enable() has run once — a debug
+        // scene-jump can replay a disable cue before any enable happened.
+        if (!target || !light) return;
         target.position.copy(new Vector3(-1000,-1000,-1000));
         light.intensity = 0;
     }

@@ -29,13 +29,50 @@ let SoundHandler = function(onProgress){
         player.start();
     }
 
+    // Every timeline cue is also recorded here so the debug UI can jump:
+    // seeking Tone.Transport forward SKIPS scheduled events, so a jump
+    // has to replay the skipped cues manually to rebuild scene state.
+    // Cues register in a CASCADE (a firing cue schedules the next stage),
+    // so replaying a cue can add new entries — the replayer iterates.
+    // Dedupe by time: a manual replay may re-run a registering cue whose
+    // children are already scheduled; without the guard they'd fire twice.
+    // Each cue tracks whether it has actually run (naturally via the
+    // transport OR manually via a debug replay) — the replayer plays
+    // every unfired cue up to the jump target, so it never depends on
+    // guessing from the current transport position.
+    this.cues = [];
+    let registerCue = (f, time) => {
+        if (this.cues.some((c) => Math.abs(c.time - time) < 0.001)) return null;
+        const cue = { time: time, fn: f, fired: false };
+        this.cues.push(cue);
+        return cue;
+    }
+
     this.schedule = (f, min, sec) => {
-        
-        Tone.Transport.schedule(f, String(min*60+sec));
+        const cue = registerCue(f, min * 60 + sec);
+        if (!cue) return;
+        Tone.Transport.schedule(() => { cue.fired = true; f(); }, String(min*60+sec));
+    }
+
+    // Debug-only: move the transport AND the bgm together (the bgm player
+    // is started free-running, not synced to the transport, so seeking
+    // the transport alone would desync the music).
+    this.seek = (sec) => {
+        Tone.Transport.seconds = sec;
+        try {
+            player.stop();
+            player.start(undefined, sec);
+        } catch (e) {
+            console.warn('bgm seek failed', e);
+        }
     }
     
     this.scheduleToneTime = (f, time) => {
-        Tone.Transport.schedule(f, time-Tone.context.currentTime+startTime);
+        // `time` is intended as seconds-from-piece-start (playBG runs at
+        // transport 0), so it doubles as the cue's transport time.
+        const cue = registerCue(f, time);
+        if (!cue) return;
+        Tone.Transport.schedule(() => { cue.fired = true; f(); }, time-Tone.context.currentTime+startTime);
     }
 
     this.consoleNow = () => {

@@ -3,9 +3,15 @@ import * as THREE from 'three';
 
 var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
 
-    // deltaShake starts near zero: the ending shake opens as a faint
-    // tremor and escalates (see headShaking's ramp in update()).
-    let randomPoints = [], camPosIndex = 0, spline, deltaRotate = 0.02, deltaFlake = 0, deltaShake = 0.08, deltaMove = 1;
+    let randomPoints = [], camPosIndex = 0, spline, deltaRotate = 0.02, deltaFlake = 0, deltaShake = 1, deltaMove = 1;
+    let shakeRamp = 0.003;
+    // Once the mask flakes off, the bare head starts an IN-PLACE tremor —
+    // vibrating around where it stands, no displacement — that swells
+    // through the whole flake window (1:53→2:00) until the second shake
+    // breaks into the violent spline-flung movement. TREMOR_RAMP_SECS is
+    // how long the tremor takes to reach full amplitude.
+    const TREMOR_RAMP_SECS = 6;
+    let tremorStart = null, tremorBase = null, tremorBaseRot = null;
     let rotateModeStart = null;
     let upper = 50, lower  = -50;
     // ←/→ flip the orbit direction during Act 3 (artist request
@@ -173,22 +179,37 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
             //console.log(directionalLight.intensity)
         } else if (this.mode == 'shake') {
             headShaking(face, mesh, deltaShake)
-            // ~15s from faint tremor to full convulsion (shakeHead fires
-            // at 1:38.4, flake takes over at 1:53.5).
             if (deltaShake < 10) {
-                deltaShake += 0.0035
+                deltaShake += shakeRamp
             }
         } else if (this.mode == 'flake') {
             maskFlaking(deltaFlake)
             if (controls.getAzimuthalAngle() < -0.15) {
-                deltaFlake += 0.01  
+                deltaFlake += 0.01
             } else {
                 deltaFlake += 0.001
             }
 
-               
+
             if (deltaFlake >= 0.8) {
                 removeModelByName('mask')
+            }
+            // The bare head trembles in place as soon as the mask starts
+            // flaking away — no displacement, just a vibration that swells
+            // until the violent shake takes over at 2:00.
+            if (tremorStart) {
+                const el = (performance.now() - tremorStart) / 1000
+                const amp = 0.06 + Math.min(el / TREMOR_RAMP_SECS, 1) * 0.45
+                face.position.set(
+                    tremorBase.x + (Math.random() * 2 - 1) * amp,
+                    tremorBase.y + (Math.random() * 2 - 1) * amp,
+                    tremorBase.z + (Math.random() * 2 - 1) * amp
+                )
+                face.rotation.set(
+                    tremorBaseRot.x + (Math.random() * 2 - 1) * 0.012,
+                    tremorBaseRot.y + (Math.random() * 2 - 1) * 0.012,
+                    tremorBaseRot.z + (Math.random() * 2 - 1) * 0.012
+                )
             }
             controls.update();
             if (Math.abs(controls.autoRotateSpeed) < 10) controls.autoRotateSpeed += 0.001 * rotateDir
@@ -203,14 +224,26 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
     }
 
     this.changeMode = (mode, camera, face, mesh) => {
+        const prevMode = this.mode
         this.mode = mode
+        // Flake → shake at 2:00: the tremor has been building through the
+        // flake window; the second shake breaks straight into violence.
+        if (mode == 'shake' && prevMode == 'flake') {
+            tremorStart = null
+            deltaShake = 1.5
+            shakeRamp = 0.01
+        }
         if (mode == 'rotate') {
             rotateModeStart = performance.now()
         }
         if (mode == 'flake') {
             resetPos(camera, face, mesh)
             this.controls.autoRotateSpeed = 1 * rotateDir
-
+            // Start the in-place tremor around where the head now stands.
+            const target = face || this.face
+            tremorStart = performance.now()
+            tremorBase = target.position.clone()
+            tremorBaseRot = target.rotation.clone()
         }
 
         if (mode == 'idle') {
