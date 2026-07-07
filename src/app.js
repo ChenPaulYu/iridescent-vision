@@ -181,7 +181,6 @@ class IridescentVisionApp {
     this.handleManager();
     this.initLight();
     this.initModel();
-    this.registerKeyboardShortcuts();
 
     document.body.appendChild(this.renderer.domElement);
     this.initDocument();
@@ -1366,133 +1365,9 @@ class IridescentVisionApp {
     };
   }
 
-  registerKeyboardShortcuts() {
-    window.addEventListener(
-      'keydown',
-      (e) => {
-        const keyID = e.code;
-        if (!this.isStarted) return;
-        if (keyID === 'KeyA') {
-          if (this.gravity) {
-            this.gravity.disable();
-            this.gravity = null;
-          }
-          this.testTransparent(2300);
-          this.headmove = new HeadMove(this.renderer, this.camera, this.scene, this.face, this.mesh, this.controls);
-          this.headmove.enable(this.camera, this.face, this.mesh);
-          e.preventDefault();
-        }
-        if (keyID === 'KeyB') {
-          if (this.gravity) {
-            this.gravity.disable();
-            this.gravity = null;
-          }
-          if (this.mouseLight) this.mouseLight.disable();
-          if (this.glassSkin) this.glassSkin.disable();
-          this.testSoft();
-          e.preventDefault();
-        }
-        if (keyID === 'KeyC') {
-          this.testOrigin();
-          if (this.gravity) {
-            this.gravity.disable();
-            this.gravity = null;
-          }
-          e.preventDefault();
-        }
-        if (keyID === 'KeyD') {
-          if (this.mouseLight) this.mouseLight.disable();
-          if (this.glassSkin) this.glassSkin.disable();
-          if (this.gravity) {
-            this.gravity.disable();
-            this.gravity = null;
-          }
-          this.testBackground();
-          e.preventDefault();
-        }
-        if (keyID === 'KeyE') {
-          if (this.camera) this.camera.position.x += 1;
-          if (this.mesh) this.mesh.position.z -= 1;
-          e.preventDefault();
-        }
-        if (keyID === 'KeyF') {
-          if (this.softVolume) {
-            this.softVolume.disable();
-            this.softVolume.dispose();
-            this.softVolume = undefined;
-          }
-          if (!this.gravity && this.mesh) {
-            this.gravity = new Gravity(this.scene, this.mesh, this.soundHandler);
-          }
-          if (this.gravity) this.gravity.enable();
-          if (this.background) this.background.direction = 'up';
-          e.preventDefault();
-        }
-        if (keyID === 'KeyG') {
-          if (this.gravity) {
-            this.gravity.applyN = true;
-          }
-          e.preventDefault();
-        }
-        if (keyID === 'KeyO') {
-          if (this.background) {
-            this.background.speedup = true;
-          }
-        }
-        if (keyID === 'KeyI') {
-          if (this.background) this.backgroundFlash('#343161');
-          else this.backgroundFlash('#5a2c7f');
-        }
-        if (keyID === 'KeyQ') {
-          this.headmove = new HeadMove(this.renderer, this.camera, this.scene, this.face, this.mesh, this.controls);
-          this.headmove.enable(this.camera, this.face, this.mesh);
-        }
-        if (keyID === 'KeyW' && this.headmove) {
-          this.headmove.changeMode('shake', this.camera, this.face, this.mesh);
-        }
-        if (keyID === 'KeyE' && this.headmove) {
-          this.headmove.changeMode('flake', this.camera, this.face, this.mesh);
-        }
-        if (keyID === 'KeyR' && this.headmove) {
-          this.headmove.changeMode('up', this.camera, this.face, this.mesh);
-        }
-        if (keyID === 'KeyT' && this.headmove) {
-          this.headmove.changeMode('rotate', this.camera, this.face, this.mesh);
-        }
-        if (keyID === 'KeyU') {
-          if (this.headmove) {
-            this.headmove.disable();
-            this.headmove = undefined;
-          }
-          this.activity = new Activity(this.camera, this.scene, this.controls);
-          this.activity.enable();
-        }
-      },
-      false
-    );
-  }
-
-  testBackground() {
-    if (!this.controls) return;
-    this.controls.enabled = false;
-
-    if (!this.background) {
-      this.background = new FiberForestBackground(this.renderer, this.scene);
-      this.background.enable();
-    } else {
-      this.background.disable();
-      this.background = undefined;
-    }
-  }
-
-  testOrigin() {
-    if (this.controls) this.controls.enabled = true;
-    if (this.directionalLight) this.directionalLight.intensity = 0.5;
-    if (this.mouseLight) this.mouseLight.disable();
-    if (this.glassSkin) this.glassSkin.disable();
-    if (this.softVolume) this.softVolume.disable();
-  }
-
+  // (Debug keyboard shortcuts and their test modes were removed for the
+  // public release — 2026-07-07. The piece runs purely on its Tone
+  // timeline; testTransparent below stays because gravity2Glass uses it.)
   testTransparent(time) {
     if (this.background) {
       this.background.disable('#000000');
@@ -1515,15 +1390,6 @@ class IridescentVisionApp {
       if (this.mouseLight) this.mouseLight.enable();
       if (this.renderer) this.renderer.setClearColor('#5a2c7f');
     }, time);
-  }
-
-  testSoft() {
-    if (this.controls) this.controls.enabled = false;
-    if (this.directionalLight) this.directionalLight.intensity = 0.5;
-    if (!this.softVolume && this.scene && this.mesh) {
-      this.softVolume = new SoftVolume(this.scene, this.mesh, true, this.soundHandler);
-    }
-    if (this.softVolume) this.softVolume.enable();
   }
 
   flash(visible = false) {
