@@ -3,9 +3,15 @@ import * as THREE from 'three';
 
 var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
 
-    let randomPoints = [], camPosIndex = 0, spline, deltaRotate = 0.02, deltaFlake = 0, deltaShake = 1, deltaMove = 1;
+    // deltaShake starts near zero: the ending shake opens as a faint
+    // tremor and escalates (see headShaking's ramp in update()).
+    let randomPoints = [], camPosIndex = 0, spline, deltaRotate = 0.02, deltaFlake = 0, deltaShake = 0.08, deltaMove = 1;
     let rotateModeStart = null;
     let upper = 50, lower  = -50;
+    // ←/→ flip the orbit direction during Act 3 (artist request
+    // 2026-07-07): flips the sign of autoRotateSpeed immediately and
+    // steers the flake-mode speed ramp.
+    let rotateDir = 1;
     this.mode = ''; 
     this.camera = camera
     this.scene  = scene
@@ -59,7 +65,11 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
 
     let headShaking = (face, mesh, delta) => {
         controls.autoRotate = false
-        camPosIndex += Math.floor(delta);
+        // Fractional steps, not Math.floor — the shake must be able to
+        // START as a barely-visible tremor (sub-index drift along the
+        // spline) before it grows violent; floored steps jump whole
+        // spline segments from the first frame.
+        camPosIndex += delta;
         if (camPosIndex > 10000) camPosIndex = 0;
 
         var camPos = spline.getPoint(camPosIndex / 10000);
@@ -147,6 +157,13 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
         }
     }
 
+    let onKeyDown = (event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        rotateDir = event.key === 'ArrowLeft' ? -1 : 1;
+        this.controls.autoRotateSpeed = Math.abs(this.controls.autoRotateSpeed) * rotateDir;
+    }
+    window.addEventListener('keydown', onKeyDown, false);
+
     this.update = (face, mesh ,controls, directionalLight) => {
 
         if (this.mode == 'idle') {
@@ -155,10 +172,11 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
             if (directionalLight.intensity < 0.8) directionalLight.intensity += 0.002
             //console.log(directionalLight.intensity)
         } else if (this.mode == 'shake') {
-            console.log('shake')
             headShaking(face, mesh, deltaShake)
+            // ~15s from faint tremor to full convulsion (shakeHead fires
+            // at 1:38.4, flake takes over at 1:53.5).
             if (deltaShake < 10) {
-                deltaShake += 0.003
+                deltaShake += 0.0035
             }
         } else if (this.mode == 'flake') {
             maskFlaking(deltaFlake)
@@ -173,7 +191,7 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
                 removeModelByName('mask')
             }
             controls.update();
-            if (controls.autoRotateSpeed < 10) controls.autoRotateSpeed += 0.001
+            if (Math.abs(controls.autoRotateSpeed) < 10) controls.autoRotateSpeed += 0.001 * rotateDir
         } else if (this.mode == 'up') {
             removeModelByName('mask')
             faceRotate()
@@ -191,8 +209,8 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
         }
         if (mode == 'flake') {
             resetPos(camera, face, mesh)
-            this.controls.autoRotateSpeed = 1
-            
+            this.controls.autoRotateSpeed = 1 * rotateDir
+
         }
 
         if (mode == 'idle') {
@@ -213,7 +231,7 @@ var HeadMove = function (renderer, camera, scene, face, mesh, controls) {
 
     this.enable = (camera, face, mesh) =>  {
         this.changeMode('idle')
-        this.controls.autoRotateSpeed = 0.4
+        this.controls.autoRotateSpeed = 0.4 * rotateDir
         resetPos(camera, face, mesh)
     }
      

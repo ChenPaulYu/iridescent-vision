@@ -34,6 +34,34 @@ var Gravity = function (scene, mesh, soundHandler) {
 
     let rand = (low, high) => low + Math.random() * (high - low);
     let randInt = (low, high) => low + Math.floor(Math.random() * (high - low + 1));
+
+    // Per-body attraction anchor: a random point ON the collision
+    // ellipsoid's surface (plus a ball radius), so every anchor is
+    // physically reachable — the ball touches the surface exactly at its
+    // anchor and the latch damping locks it there. Anchors placed off the
+    // surface fail both ways: outside it, balls hover in air; inside it,
+    // the surface blocks them short of the latch radius and they jitter
+    // forever ("有些球會黏不上"). The frame is centered on the mask's
+    // real bbox center (measured in enable()); pole clamp keeps anchors
+    // within the visible head height.
+    const COL_RX = 10, COL_RY = 30, COL_RZ = 8;   // centerBody size (init)
+    let anchorPoleClamp = 0.85;
+    let anchorCenterWorld = null;   // mask bbox center at enable()
+    let anchorOffset = null;        // bbox center relative to update() pos
+    let randomAnchor = () => {
+        const u = (Math.random() * 2 - 1) * anchorPoleClamp;
+        const phi = Math.random() * Math.PI * 2;
+        const s = Math.sqrt(1 - u * u);
+        const dx = s * Math.cos(phi), dy = u, dz = s * Math.sin(phi);
+        // scale along (dx,dy,dz) that lands on the ellipsoid surface
+        const k = 1 / Math.sqrt(
+            (dx / COL_RX) * (dx / COL_RX) +
+            (dy / COL_RY) * (dy / COL_RY) +
+            (dz / COL_RZ) * (dz / COL_RZ)
+        );
+        const r = k + 1.1;   // + average ball radius
+        return new Vec3(dx * r, dy * r, dz * r);
+    };
     
     let init = () => {
         initSound();
@@ -151,6 +179,13 @@ var Gravity = function (scene, mesh, soundHandler) {
         let center = new Vec3(pos.x, pos.y, pos.z);
         let all    = this.all
         nowDate = new Date();
+        // Resolve the bbox-fitted anchor frame against the head-tracking
+        // pos on first update: from then on anchors ride along with it.
+        if (!anchorOffset) {
+            anchorOffset = anchorCenterWorld
+                ? new Vec3(anchorCenterWorld.x - pos.x, anchorCenterWorld.y - pos.y, anchorCenterWorld.z - pos.z)
+                : new Vec3(0, 0, 0);
+        }
         // Contact checks (world.getContact × ~80 bodies, plus the sound
         // triggers behind them) only every other frame — Ascension is the
         // piece's heaviest beat (physics + tunnel + magnet shader at
@@ -164,19 +199,33 @@ var Gravity = function (scene, mesh, soundHandler) {
             if (b.type === 1) {
                 if (checkContacts) contact(b);
                 m = b.mesh;
-                force = center.clone().sub(m.position).normalize().multiplyScalar(delta);
+                let target = b.userData.anchor
+                    ? center.clone().add(anchorOffset).add(b.userData.anchor)
+                    : center;
+                let dir = target.clone().sub(m.position);
+                const dist = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z) || 1;
+                dir.normalize();
                 if (delta < 15) delta += 1
                 if (applyN && (Math.floor(Math.random() * 4) || all)) {
                     //b.userData.contact = false;
+                    force = dir.multiplyScalar(delta);
                     if (!all) force = force.negate().multiplyScalar(Math.random() * 10 + 20);
                     else force = force.negate().multiplyScalar(Math.random() * 40 + 30);
-                } 
+                } else {
+                    // Magnetic latch: constant-magnitude attraction never
+                    // settles (balls oscillate around the anchor forever),
+                    // so near the surface the pull turns spring-like and
+                    // velocity is bled off — the ball snaps on and STAYS
+                    // until the next scatter pulse flings it.
+                    force = dir.multiplyScalar(delta * Math.min(1, dist / 14));
+                    if (dist < 6) b.linearVelocity.multiplyScalar(0.8);
+                }
                 b.applyImpulse(center, force);
 
-            } 
+            }
 
         });
-        centerBody.setPosition(center);
+        centerBody.setPosition(center.clone().add(anchorOffset));
         if (this.applyN) this.applyN = false;
         if (this.all) this.all = false
     }
@@ -223,9 +272,20 @@ var Gravity = function (scene, mesh, soundHandler) {
     this.enable = () => {
         this.enabled = true;
         addListener();
+        // Center the anchor frame on the mask as it actually renders now,
+        // and clamp anchor latitude so no anchor sits above the crown or
+        // below the chin.
+        const box = new THREE.Box3().setFromObject(this.mesh);
+        const bc = box.getCenter(new THREE.Vector3());
+        const bs = box.getSize(new THREE.Vector3());
+        anchorCenterWorld = bc;
+        anchorPoleClamp = Math.min(1, Math.max(0.4, (bs.y * 0.5) / COL_RY));
+        anchorOffset = null;
         //TODO: change to enable!
         for (var i = 0; i < size; i++) {
-            bodys.push(add2World(createParticle(rand(0.5, 1))));
+            const b = add2World(createParticle(rand(0.5, 1)));
+            b.userData.anchor = randomAnchor();
+            bodys.push(b);
         }
 
         changeTexture();

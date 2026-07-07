@@ -232,19 +232,18 @@ class IridescentVisionApp {
         }
         if (this.gravity) {
           this.gravity.enable();
-          // Gravity.postLoop pulls every ball toward center every frame
-          // and only ever scatters them on a real click/dblclick
-          // (applyForce/applyAllForce in Gravity.js) — during normal
-          // passive playback nothing ever fires that, so the balls just
-          // clump onto one spot on the mask instead of orbiting (reported
-          // 2026-07-06: "球散的好不平均"). Auto-pulse the scatter impulse
-          // periodically for the whole Ascension window so they keep
-          // circulating without needing a real click.
+          // Auto-pulse the scatter impulse during Ascension so the swarm
+          // keeps breathing without a real click. The period must leave
+          // room for the magnetic latch to read: balls take ~2s to fly
+          // back and bead onto the face, so at the old 2600ms they were
+          // re-flung the moment they arrived and never looked stuck
+          // (reported 2026-07-07: "會一直飛來飛去"). 8s ≈ a slow breath:
+          // stick, hold, burst.
           this.gravity.applyN = true;
           if (this._gravityScatterInterval) clearInterval(this._gravityScatterInterval);
           this._gravityScatterInterval = setInterval(() => {
             if (this.gravity) this.gravity.applyN = true;
-          }, 2600);
+          }, 8000);
         }
         if (this.background) {
           this.background.direction = 'up';
